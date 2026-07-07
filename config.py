@@ -1,0 +1,21 @@
+import pygame
+
+WIDTH, HEIGHT = 1280, 720
+FPS = 60
+
+WHITE = (255, 255, 255)
+BLACK = (20, 20, 20)
+GRAY = (100, 100, 100)
+DARK_GRAY = (40, 40, 40)
+RED = (255, 80, 80)
+GREEN = (80, 255, 80)
+BLUE = (80, 80, 255)
+YELLOW = (255, 255, 80)
+CYAN = (80, 255, 255)
+
+DT = 1 / FPS
+PREDICTION_STEPS = 60
+
+# 랜딩 성공 기준 물리량
+MAX_LANDING_SPEED = 60.0
+MAX_ANGLE_DIFF = 10.0
