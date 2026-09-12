@@ -12,7 +12,6 @@ from config import (
 )
 from ship_motion import ShipMotion
 from controller import eVTOLController
-from avatar_renderer import create_avatar_pilot_frame
 from hand_tracker import HandTracker
 
 def draw_text(surf, text, font, color, x, y):
@@ -548,9 +547,7 @@ def main():
         )
         
         if step == 45:
-            save_surface_as_image(screen, "assets/screenshot_main_hud.png")
             save_surface_as_image(screen, "assets/screenshot_auto_landing.png")
-            create_crop(screen, pygame.Rect(20, 160, 370, 535), "assets/screenshot_telemetry_graphs.png")
             
         img_data = pygame.image.tostring(screen, "RGB")
         pil_img = Image.frombytes("RGB", (WIDTH, HEIGHT), img_data)
@@ -559,168 +556,7 @@ def main():
             
     save_flicker_free_gif(frames_auto, "assets/demo_auto_landing.gif", fps=28)
 
-    # -------------------------------------------------------------------------
-    # 4. SCENARIO MANUAL FLIGHT
-    # -------------------------------------------------------------------------
-    print("Generating Scenario 4: Manual Flight (Flicker-Free)...")
-    ship = ShipMotion()
-    evtol = eVTOLController()
-    evtol.is_auto = False
-    evtol.x = 580
-    evtol.y = 210
-    history_ship_pitch = []
-    frames_manual = []
-    tracker_manual = HandTracker()
-    
-    for step in range(80):
-        ship_center, p1, p2, ship_pitch = ship.update()
-        cam_frame, hand_tilt = tracker_manual.get_tilt()
-        
-        active_keys = set()
-        if (step // 15) % 2 == 0: active_keys.add("W")
-        if step > 20 and step < 65: active_keys.add("D")
-            
-        evtol.angle += (hand_tilt - evtol.angle) * 0.14
-        evtol.vx = 28.0 * math.sin(step * 0.08)
-        evtol.vy = -16.0 if "W" in active_keys else 16.0
-        evtol.x += evtol.vx * DT
-        evtol.y += evtol.vy * DT
-        evtol.y = max(80, min(360, evtol.y))
-        
-        evtol.history_vy.append(evtol.vy)
-        evtol.history_angle_diff.append(abs(evtol.angle - ship_pitch))
-        if len(evtol.history_vy) > 100: evtol.history_vy.pop(0)
-        if len(evtol.history_angle_diff) > 100: evtol.history_angle_diff.pop(0)
-        history_ship_pitch.append(ship_pitch)
-        if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
-        
-        prop_angle = (prop_angle + 40) % 360
-        
-        render_simulator(
-            screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
-            history_ship_pitch, cam_frame, active_keys, fonts, "", WHITE, 0
-        )
-        
-        if step == 35:
-            save_surface_as_image(screen, "assets/screenshot_manual_flight.png")
-            
-        img_data = pygame.image.tostring(screen, "RGB")
-        pil_img = Image.frombytes("RGB", (WIDTH, HEIGHT), img_data)
-        pil_img = pil_img.resize(target_gif_size, Image.Resampling.LANCZOS)
-        frames_manual.append(pil_img)
-            
-    save_flicker_free_gif(frames_manual, "assets/demo_manual_flight.gif", fps=26)
-
-    # -------------------------------------------------------------------------
-    # 5. SCENARIO LANDING SUCCESS
-    # -------------------------------------------------------------------------
-    print("Generating Scenario 5: Landing Success (Flicker-Free)...")
-    ship = ShipMotion()
-    evtol = eVTOLController()
-    evtol.is_auto = True
-    evtol.x = 660
-    history_ship_pitch = []
-    
-    for i in range(80):
-        evtol.history_vy.append(42.0 - i * 0.25)
-        evtol.history_angle_diff.append(max(0.6, 6.5 - i * 0.08))
-        history_ship_pitch.append(8.0 * math.sin(0.8 * (i * DT)))
-        
-    frames_success = []
-    for step in range(70):
-        ship_center, p1, p2, ship_pitch = ship.update()
-        
-        if step < 22:
-            evtol.y = (ship_center[1] - 65) + step * 1.8
-            evtol.vy = 26.0 - step * 0.4
-            evtol.angle = ship_pitch - 0.8
-            msg = ""
-            msg_color = WHITE
-            timer = 0
-        else:
-            evtol.y = ship_center[1] - 15
-            evtol.vy = 0.0
-            evtol.angle = ship_pitch
-            msg = "LANDING SUCCESS: SAFE TOUCHDOWN"
-            msg_color = GREEN
-            timer = 60
-            
-        cam_frame = create_avatar_pilot_frame(ship_pitch, step)
-        prop_angle = (prop_angle + 40) % 360
-        history_ship_pitch.append(ship_pitch)
-        if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
-        
-        render_simulator(
-            screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
-            history_ship_pitch, cam_frame, set(), fonts, msg, msg_color, timer
-        )
-        
-        if step == 30:
-            save_surface_as_image(screen, "assets/screenshot_landing_success.png")
-            
-        img_data = pygame.image.tostring(screen, "RGB")
-        pil_img = Image.frombytes("RGB", (WIDTH, HEIGHT), img_data)
-        pil_img = pil_img.resize(target_gif_size, Image.Resampling.LANCZOS)
-        frames_success.append(pil_img)
-            
-    save_flicker_free_gif(frames_success, "assets/demo_landing_success.gif", fps=26)
-
-    # -------------------------------------------------------------------------
-    # 6. SCENARIO CRASH IMPACT
-    # -------------------------------------------------------------------------
-    print("Generating Scenario 6: Crash Impact (Flicker-Free)...")
-    ship = ShipMotion()
-    evtol = eVTOLController()
-    evtol.is_auto = False
-    history_ship_pitch = []
-    
-    for i in range(80):
-        evtol.history_vy.append(30.0 + i * 0.7)
-        evtol.history_angle_diff.append(14.0 + i * 0.15)
-        history_ship_pitch.append(12.0 * math.sin(0.8 * (i * DT)))
-        
-    frames_crash = []
-    for step in range(65):
-        ship_center, p1, p2, ship_pitch = ship.update()
-        
-        if step < 18:
-            evtol.x = ship_center[0] - 20
-            evtol.y = (ship_center[1] - 110) + step * 4.8
-            evtol.vy = 76.0
-            evtol.angle = ship_pitch + 20.0
-            msg = ""
-            msg_color = WHITE
-            timer = 0
-        else:
-            evtol.x = ship_center[0] - 20
-            evtol.y = ship_center[1] - 25
-            evtol.vy = 0.0
-            evtol.angle = ship_pitch + 20.0
-            msg = "CRASHED! IMPACT: 76 m/s (LIMIT: 60)"
-            msg_color = RED
-            timer = 60
-            
-        prop_angle = (prop_angle + 40) % 360
-        cam_frame = create_avatar_pilot_frame(-20.0, step)
-        history_ship_pitch.append(ship_pitch)
-        if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
-        
-        render_simulator(
-            screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
-            history_ship_pitch, cam_frame, {"S"}, fonts, msg, msg_color, timer
-        )
-        
-        if step == 24:
-            save_surface_as_image(screen, "assets/screenshot_crash_impact.png")
-            
-        img_data = pygame.image.tostring(screen, "RGB")
-        pil_img = Image.frombytes("RGB", (WIDTH, HEIGHT), img_data)
-        pil_img = pil_img.resize(target_gif_size, Image.Resampling.LANCZOS)
-        frames_crash.append(pil_img)
-            
-    save_flicker_free_gif(frames_crash, "assets/demo_crash_impact.gif", fps=26)
-
-    print("=== All Flicker-Free, Direction-Verified Assets Completed! ===")
+    print("=== All Active Documentation Assets Generated Successfully! ===")
 
 if __name__ == "__main__":
     main()

@@ -86,9 +86,10 @@ class HandTracker:
                     
         # Fallback if both video and webcam are unavailable
         if not success or frame is None:
-            from avatar_renderer import create_avatar_pilot_frame
             sim_angle = 25.0 * math.sin(self.frame_count * 0.08)
-            return create_avatar_pilot_frame(sim_angle, self.frame_count), sim_angle
+            dummy = np.zeros((240, 320, 3), dtype=np.uint8)
+            cv2.putText(dummy, "NO VIDEO FEED", (60, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 220, 255), 2)
+            return dummy, sim_angle
             
         if not self.is_video_mode:
             frame = cv2.flip(frame, 1)
