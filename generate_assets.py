@@ -468,15 +468,15 @@ def main():
     ship = ShipMotion()
     evtol = eVTOLController()
     evtol.is_auto = True
-    evtol.x = 590
-    evtol.y = 120
+    evtol.x = 610
+    evtol.y = 485
     evtol.vx = 0.0
     evtol.vy = 0.0
     history_ship_pitch = []
     frames_auto = []
     
     total_auto_steps = 110
-    touchdown_step = 78
+    touchdown_step = 72
     for step in range(total_auto_steps):
         t = step * 0.0333
         # Natural maritime wave dynamics harmonized with swell period
@@ -499,6 +499,7 @@ def main():
         history_ship_pitch.append(ship_pitch)
         if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
         
+        approach_hover_y = y_center - 85
         target_deck_y = y_center - 15
         if step < touchdown_step:
             u = step / float(touchdown_step)
@@ -506,18 +507,18 @@ def main():
             s = 6.0 * (u ** 5) - 15.0 * (u ** 4) + 10.0 * (u ** 3)
             ds_du = 30.0 * (u ** 4) - 60.0 * (u ** 3) + 30.0 * (u ** 2)
             
-            evtol.x = 590.0 + (x_center - 590.0) * s
-            evtol.y = 120.0 + (target_deck_y - 120.0) * s
+            evtol.x = (x_center - 30.0) + 30.0 * s
+            evtol.y = approach_hover_y + (target_deck_y - approach_hover_y) * s
             
-            # Smooth descent speed curve peaking mid-flight and decelerating gently to 0 at deck
-            evtol.vy = 24.0 * ds_du
-            evtol.vx = 6.0 * (1.0 - u)
-            evtol.angle += (ship_pitch - evtol.angle) * 0.20
+            # Gentle, safe descent speed curve peaking calmly at ~15 m/s and flaring to 0 m/s at touchdown
+            evtol.vy = 8.0 * ds_du
+            evtol.vx = 2.5 * (1.0 - u)
+            evtol.angle += (ship_pitch - evtol.angle) * 0.22
             
             msg = ""
             msg_color = WHITE
             timer = 0
-            if u < 0.65:
+            if u < 0.60:
                 banner = "[FCS AUTONOMOUS APPROACH] Synchronizing Altitude & Waypoint with Deck"
             else:
                 banner = "[FCS TERMINAL FLARE] Decelerating Descent Rate for Soft Deck Touchdown"
@@ -637,7 +638,7 @@ def main():
             msg_color = WHITE
             timer = 0
         else:
-            evtol.y = ship_center[1] - 25
+            evtol.y = ship_center[1] - 15
             evtol.vy = 0.0
             evtol.angle = ship_pitch
             msg = "LANDING SUCCESS: SAFE TOUCHDOWN"
