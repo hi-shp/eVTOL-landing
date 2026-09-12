@@ -8,22 +8,53 @@
 [![MediaPipe](https://img.shields.io/badge/MediaPipe-Hands_HMI-00A4E4?style=for-the-badge&logo=google&logoColor=white)](#)
 [![NumPy](https://img.shields.io/badge/NumPy-Scientific-013243?style=for-the-badge&logo=numpy&logoColor=white)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](#)
-[![FCS Status](https://img.shields.io/badge/FCS-Autonomous%20Active-brightgreen?style=for-the-badge)](#)
+[![Control: 3--DoF](https://img.shields.io/badge/Control-3--DoF%20Body%20Coupled-FF6B6B?style=for-the-badge)](#)
 
 <p align="center">
-  <b>MediaPipe 비전 HMI와 동적 PD 피드백 제어를 활용한 해상 특수목적 비행체(eVTOL) 자율 착함 시뮬레이터</b><br>
-  <i>Hardware-in-the-Loop Vision Gesture Tracking & Dynamic Wave Surface Feedback Flight Control System</i>
+  <b>조종사 신체 연동 직관적 3자유도(3-DoF) 제어와 MediaPipe 비전 HMI를 활용한 해상 특수목적 비행체(eVTOL) 착함 시뮬레이터</b><br>
+  <i>Hardware-in-the-Loop Vision Gesture Tracking & Dynamic Wave Surface 3-DoF Feedback Flight Control System</i>
 </p>
 
 </div>
 
 ---
 
-## 🎬 메인 시뮬레이션 데모 (Live Demonstration)
+## 🎯 핵심 차별점: 왜 '3자유도(3-DoF) 신체 연동 착함'인가?
+
+일반적인 드론/비행체 착륙 시스템은 수평 이동($x$)과 수직 강하($y$)만을 고려하는 **2자유도(2-DoF) 착륙**에 의존합니다. 육상과 같은 평지에서는 기체가 수평(Pitch = 0°)을 유지해도 무방하지만, **파도로 인해 끊임없이 요동치고 기울어지는(Pitch = 10°~15°) 해상 선박 갑판**에서는 치명적인 결함이 발생합니다.
+
+* ❌ **기존 2자유도(2-DoF) 착함의 한계**: 수평 자세(Pitch = 0°)로 강하 시, 기울어진 데크에 한쪽 스키드만 먼저 충돌하여 거대한 모멘트와 함께 **기체 전복(Roll-over) 및 구조 파손 사고**가 발생합니다.
+* ✅ **본 프로젝트의 3자유도(3-DoF) 신체 연동 착함**: 조종사의 신체(손목-손가락 관절 각도)를 실시간 비전 HMI로 추출하여 위치($x, y$)뿐만 아니라 **기체의 자세각(Pitch, $\theta$)을 갑판의 순간 기울기와 1:1로 정렬**시킵니다. 이를 통해 **2개의 착륙 스키드가 동시에 부드럽게 접지하는 안정적인 소프트 터치다운**을 실현합니다.
+
+<div align="center">
+  <img src="assets/demo_2dof_vs_3dof.gif" alt="2-DoF vs 3-DoF Comparison Demo" width="920"/>
+  <p><i>▲ <b>[비교 시연] 기존 2-DoF 착함(자세 불일치로 인한 전복·충돌) vs 제안된 3-DoF 신체 연동 착함(자연스러운 각도 일치 안착)</b></i></p>
+</div>
+
+---
+
+## 🤖 조종사 신체 연동 HMI & 가상 파일럿 아바타 (Privacy Protection)
+
+파일럿의 실제 얼굴 노출을 100% 방지하고 프라이버시를 보호하기 위해, 시뮬레이터 HMI에는 **사이버네틱 비행 헬멧/파일럿 아바타(Cyber Pilot Avatar)**가 적용되어 있습니다.
+아바타의 손이 좌우로 기울어지면 MediaPipe 관절 스켈레톤(21개 랜드마크)이 실시간으로 손 각도를 추적하고, 상공의 eVTOL 드론이 **손의 기울기에 즉각 동기화되어 좌우로 부드럽게 틸팅(Tilt Left / Right)**됩니다.
+
+<div align="center">
+  <img src="assets/demo_3dof_gesture_tilt.gif" alt="3-DoF Gesture Tilt Coupling Demo" width="920"/>
+  <p><i>▲ <b>[실시간 제스처 연동] 가상 아바타 손 흔들림(Tilt ±30°) ➔ 드론 Pitch 자세각 실시간 1:1 동기화 기동</b></i></p>
+</div>
+
+| 아바타 헬멧 마스킹 및 손 스켈레톤 추적 | 드론 실시간 자세축 동기화 틸팅 (Attitude Sync) |
+| :---: | :---: |
+| <img src="assets/screenshot_avatar_hmi_tilt.png" alt="Avatar HMI Tilt Screenshot" width="460"/> | <img src="assets/screenshot_3dof_attitude_alignment.png" alt="3-DoF Alignment Screenshot" width="460"/> |
+| *얼굴 프라이버시 완벽 보호 & 손목(lm0) $\rightarrow$ 중지(lm9) 제어 벡터* | *선박 데크 기울기와 드론 Pitch 100% 평행 정렬 접지* |
+
+---
+
+## 🎬 메인 자율 착륙 시연 (Autonomous FCS Showcase)
 
 <div align="center">
   <img src="assets/demo_auto_landing.gif" alt="FCS Auto Landing Demo" width="920"/>
-  <p><i>▲ <b>FCS 자율 착륙 모드 (Auto-Landing)</b>: 불규칙 파랑으로 요동치는 선체 데크의 롤링/피칭/헤브 운동을 실시간 추적하여 완벽한 속도 및 각도로 안전 안착</i></p>
+  <p><i>▲ <b>FCS 자율 착륙 모드 (Auto-Landing)</b>: 불규칙 파랑으로 요동치는 선체 데크의 롤링/피칭/헤브 운동을 실시간 추적하여 완벽한 속도 및 각도로 안전 안착 (28 FPS)</i></p>
 </div>
 
 ---
@@ -36,9 +67,9 @@
 
 본 시뮬레이터는 이러한 환경적 한계를 극복하기 위해 다음의 3대 핵심 기술을 통합 구현한 고성능 2D 물리 시뮬레이션 플랫폼입니다:
 
-1. **MediaPipe 실시간 비전 HMI (Human-Machine Interface)**: 웹캠을 통해 사용자의 손목과 손가락 관절 스켈레톤 벡터를 실시간 추출하여 비행체 Pitch를 직관적으로 원격 조종
+1. **MediaPipe 실시간 비전 HMI (Human-Machine Interface)**: 웹캠을 통해 사용자의 손목과 손가락 관절 스켈레톤 벡터를 실시간 추출하여 비행체 Pitch를 직관적으로 원격 조종 (사이버네틱 아바타 얼굴 프라이버시 보호 기능 탑재)
 2. **다중 사인파 중첩 기반 선체 파랑 운동학 엔진 (Ship Hull Dynamics)**: 해상 파도의 다중 주파수/진폭 성분을 합성하여 현실적인 선박 Heave & Pitch 거동 모사
-3. **FCS 자율 착륙 피드백 제어 시스템 (Autonomous FCS PD Controller)**: 동적으로 변하는 선박 갑판의 위치($x_{ship}, y_{ship}$)와 기울기($\theta_{ship}$)를 실시간 추적하여 오차를 0으로 수렴시키는 비행 제어 알고리즘
+3. **FCS 자율 착륙 피드백 제어 시스템 (Autonomous FCS PD Controller)**: 동적으로 변하는 선박 갑판의 위치($x_{ship}, y_{ship}$)와 기울기($\theta_{ship}$)를 실시간 추적하여 오차를 0으로 수렴시키는 3-DoF 비행 제어 알고리즘
 
 ---
 
@@ -56,7 +87,8 @@
 ```mermaid
 flowchart LR
     subgraph SENSING ["1. HMI & Input Layer"]
-        CAM["WebCam DirectShow Feed"] --> MP["MediaPipe Hands (21 Landmarks)"]
+        CAM["WebCam DirectShow / Synthetic"] --> AVATAR["Avatar Privacy Masking"]
+        AVATAR --> MP["MediaPipe Hands (21 Landmarks)"]
         MP --> VEC["Extract Vector (lm0 -> lm9)\nCalculate Pitch Angle [-45°, +45°]"]
         KEY["Keyboard Poller (WASD)"] --> THRUST["Dynamic Thrust Multiplier\n(1.0x -> max 3.5x boost)"]
         TOGGLE["[T] Key Toggle"] --> MODE{"Flight Mode"}
@@ -68,15 +100,15 @@ flowchart LR
         HEAVE & PITCH --> DECK["Deck Surface Equation\ny = m(t)·(x - x1) + y1"]
     end
 
-    subgraph FCS ["3. Flight Control System"]
-        MODE -- Manual -- --> DIRECT["Direct Angle & Thrust Coupling"]
+    subgraph FCS ["3. 3-DoF Flight Control System"]
+        MODE -- Manual -- --> DIRECT["Direct 3-DoF Body Pitch & Thrust Coupling"]
         MODE -- Autonomous -- --> PID["Dynamic Error PD Feedback\nay = kp_y·ey - kd_y·vy\nax = kp_x·ex - kd_x·vx\nα = kp_a·eθ"]
         DIRECT & PID --> INTEG["Euler Numerical Integration\nv += a·dt, x += v·dt\nAir Drag: v *= 0.95"]
     end
 
     subgraph EVAL ["4. Touchdown & HUD"]
         INTEG & DECK --> CONTACT{"Deck Contact?"}
-        CONTACT -- Yes --> CHECK{"Safe Criteria?\nVy < 60 m/s\n|Δθ| < 10°"}
+        CONTACT -- Yes --> CHECK{"Safe 3-DoF Criteria?\nVy < 60 m/s\n|Δθ| < 10°"}
         CHECK -- PASS --> SUCCESS["LANDING SUCCESS"]
         CHECK -- FAIL --> CRASH["CRASHED! IMPACT"]
         INTEG & PITCH --> HUD["Tactical HUD & 3-Ch Graphs"]
@@ -87,31 +119,46 @@ flowchart LR
 
 ## 🚀 주요 기능 및 시각화 갤러리 (Key Features & Gallery)
 
-### 1. FCS 자율 착륙 시스템 (Dynamic Deck Tracking FCS)
-* 비행 중 `T` 키를 누르면 즉시 자율 착륙 모드로 전환됩니다.
-* FCS는 선박 헬리패드 중앙 좌표와 데크의 실시간 법선 각도를 타깃으로 삼아 수직 오차($e_y$), 수평 오차($e_x$), 각도 오차($e_\theta$)를 지속적으로 감지하고 감쇠 피드백을 적용하여 부드러운 안착 궤적을 형성합니다.
+### 1. 2자유도(2-DoF) vs 3자유도(3-DoF) 착함 성능 비교
 
-| 자율 착륙 시연 (High-FPS GIF) | 실시간 자율 추적 관제 화면 (HD Screenshot) |
-| :---: | :---: |
-| <img src="assets/demo_auto_landing.gif" alt="Auto Landing GIF" width="460"/> | <img src="assets/screenshot_auto_landing.png" alt="Auto Landing Screenshot" width="460"/> |
-| *선박 데크의 높이와 각도 요동에 정밀 대응* | *FCS Mode: [ AUTO LANDING ] 및 가이드 락온* |
+| 구분 | 일반적인 2-DoF 착함 방식 | 제안된 신체 연동 3-DoF 착함 방식 |
+|:---|:---|:---|
+| **제어 변수** | 수평 위치($x$), 수직 위치($y$) | **수평 위치($x$), 수직 위치($y$), 기체 피치 각도($\theta$)** |
+| **조종 인터페이스** | 단순 버튼/조이스틱 (자세각 불일치) | **파일럿 손목-손가락 각도 실시간 1:1 비전 HMI 연동** |
+| **기울어진 갑판 접지 시** | ❌ 한쪽 스키드만 편하중 충돌 $\rightarrow$ **전복(Roll-over) 사고** | ✅ **갑판과 완벽한 평행 상태 정렬 $\rightarrow$ 양쪽 스키드 동시 소프트 터치다운** |
+| **착함 성공률 (파랑 환경)**| 저조 (각도 편차 허용치 초과 빈발) | **월등히 높음 (갑판 요동에 즉각 적응)** |
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><b>❌ 2-DoF 한계: 자세 불일치 충돌 (Crash Alert)</b></td>
+      <td align="center"><b>✅ 3-DoF 성공: 신체 연동 각도 일치 안착 (Success)</b></td>
+    </tr>
+    <tr>
+      <td><img src="assets/screenshot_2dof_crash_comparison.png" alt="2-DoF Crash Screenshot" width="450"/></td>
+      <td><img src="assets/screenshot_3dof_attitude_alignment.png" alt="3-DoF Success Screenshot" width="450"/></td>
+    </tr>
+    <tr>
+      <td align="center"><i>Pitch = 0° 고정으로 기울어진 갑판 충돌 및 전복</i></td>
+      <td align="center"><i>파일럿 손 각도와 갑판 각도 10.4° 동시 일치 안전 접지</i></td>
+    </tr>
+  </table>
+</div>
 
 ---
 
-### 2. MediaPipe 기반 직관적 비전 HMI (Gesture Flight Control)
-* OpenCV DirectShow와 Google MediaPipe Hands 솔루션을 결합하여 파일럿의 손가락 스켈레톤(21개 랜드마크)을 실시간으로 추적합니다.
-* **손목 관절(Landmark 0)**과 **중지 중수지절관절(Landmark 9)** 간의 2D 방향 벡터를 추출하여 파일럿의 손 기울기를 eVTOL 기체의 Pitch와 1:1로 실시간 동기화합니다.
+### 2. 수동 비행 조종 (Manual 3-DoF Flight)
+파일럿은 키보드(WASD)로 추진력을 가속하면서, 동시에 손을 좌우로 기울여 비행체의 3자유도 회전 운동(Pitching)을 직관적으로 제어할 수 있습니다. 키를 누르고 있을수록 추력 배율이 1.0x에서 최대 3.5x까지 점진 가속됩니다.
 
-| 수동 비행 및 HMI 조종 (High-FPS GIF) | 손 스켈레톤 인식 및 벡터 계측 (Zoom-in) |
+| 수동 3자유도 비행 시연 (High-FPS GIF) | 수동 모드 관제 화면 (HD Screenshot) |
 | :---: | :---: |
-| <img src="assets/demo_manual_flight.gif" alt="Manual Flight GIF" width="460"/> | <img src="assets/screenshot_mediapipe_hmi.png" alt="MediaPipe HMI Zoom" width="460"/> |
-| *WASD 가속 및 손 기울기에 따른 즉각적 기동* | *Wrist(lm0) $\rightarrow$ Middle(lm9) 제어 벡터 추출* |
+| <img src="assets/demo_manual_flight.gif" alt="Manual Flight GIF" width="460"/> | <img src="assets/screenshot_manual_flight.png" alt="Manual Flight Screenshot" width="460"/> |
+| *WASD 가속 및 손 기울기에 따른 즉각적 3자유도 기동* | *추진력 부스트 및 자세 궤적 모니터링* |
 
 ---
 
 ### 3. 충돌 판정 및 Safe Touchdown 물리 엔진
-* 선박 갑판의 동적 1차 방정식 경계면과 비행체 하단 랜딩 기어 간의 실시간 교차 연산을 수행합니다.
-* 착함 순간의 물리량 계측 데이터를 기반으로 항공 안전 기준에 따른 **Safe Touchdown** 여부를 자동 판정합니다.
+선박 갑판의 동적 1차 방정식 경계면과 비행체 하단 랜딩 기어 간의 실시간 교차 연산을 수행합니다. 착함 순간의 물리량 계측 데이터를 기반으로 항공 안전 기준에 따른 **Safe Touchdown** 여부를 자동 판정합니다.
 
 | 판정 기준 항목 | 안전 착함 허용 기준 (SAFE) | 충돌/위험 기준 (CRASH) | 판정 메커니즘 |
 |:---|:---:|:---:|:---|
@@ -132,17 +179,12 @@ flowchart LR
       <td><img src="assets/screenshot_landing_success.png" alt="Landing Success Screenshot" width="450"/></td>
       <td><img src="assets/screenshot_crash_impact.png" alt="Crash Impact Screenshot" width="450"/></td>
     </tr>
-    <tr>
-      <td align="center"><i>안전 하강 속도 및 각도 일치 안착 (GREEN Popup)</i></td>
-      <td align="center"><i>급강하 충돌 시 충격량 계측 및 리셋 (RED Alert)</i></td>
-    </tr>
   </table>
 </div>
 
 ---
 
 ### 4. 전술 비행 관제 대시보드 및 3채널 실시간 텔레메트리 (Tactical HUD)
-비행 상황을 한눈에 파악할 수 있도록 좌측에 3개의 독립적인 실시간 시계열 그래프와 데이터 대시보드를 배치했습니다.
 
 <div align="center">
   <img src="assets/screenshot_main_hud.png" alt="Full Tactical HUD Screenshot" width="920"/>
@@ -151,25 +193,9 @@ flowchart LR
 
 | 채널 | 대시보드 모듈명 | 표시 파라미터 및 안전 임계치 | 기술적 의의 |
 |:---:|:---|:---|:---|
-| **CH 1** | **PITCH DEVIATION ERROR** | $|\theta_{drone} - \theta_{ship}|$ (0° ~ 30°)<br>🔴 **임계 한계선: 10.0°** | 비행체와 요동치는 선박 간의 자세 오차 수렴율 모니터링 |
+| **CH 1** | **PITCH DEVIATION ERROR** | $|\theta_{drone} - \theta_{ship}|$ (0° ~ 30°)<br>🔴 **임계 한계선: 10.0°** | 3-DoF 착함 시 비행체와 요동치는 선박 간의 자세 오차 수렴율 모니터링 |
 | **CH 2** | **VERTICAL DESCENT RATE** | 수직 속도 $V_y$ (0 ~ 80 m/s)<br>🔴 **안전 한계선: 60.0 m/s** | 하강율 제어 및 터치다운 충격 완화 계측 |
 | **CH 3** | **SHIP HULL WAVE PITCH** | 선체 피칭 동역학 (-20° ~ +20°)<br>⚪ **0° 기준 수평선** | 해상 파랑 상태 및 선체 주기적 기울기 예측 |
-
-<div align="center">
-  <img src="assets/screenshot_telemetry_graphs.png" alt="Telemetry Graphs Detail" width="540"/>
-  <p><i>▲ <b>실시간 텔레메트리 3종 그래프 상세 뷰</b></i></p>
-</div>
-
----
-
-### 5. 불규칙 파랑 및 선체 거동 물리 모델링 (Wave & Ship Dynamics)
-* 실제 해양 파랑 스펙트럼(Pierson-Moskowitz / JONSWAP 모델의 기본 원리)을 반영하여 상이한 주파수, 진폭, 위상을 지닌 다중 사인파를 중첩했습니다.
-* 선체 본체 폴리곤, 브릿지(함교) 구조물 및 조종 창문, 흘수선(Waterline), 헬리패드 데크 안전 경계등(Green/Red)을 사실적으로 렌더링합니다.
-
-<div align="center">
-  <img src="assets/screenshot_ship_wave_dynamics.png" alt="Ship Wave Dynamics Screenshot" width="800"/>
-  <p><i>▲ <b>선체 동역학 및 해상 헬리패드 경계면 렌더링</b></i></p>
-</div>
 
 ---
 
@@ -194,20 +220,18 @@ $$x_2(t) = x_c + \frac{L_{deck}}{2} \cos\left(\theta_{\text{pitch}}(t)\right), \
 
 ---
 
-### 2. eVTOL 비행 역학 및 공기 저항 (Flight Mechanics)
-비행체에 가해지는 순 가속도 $(a_x, a_y)$는 중력 가속도($g$), 제어 추력($F_x, F_y$), 공기 저항 감쇠율($\eta = 0.95$)로 구성됩니다:
+### 2. eVTOL 비행 역학 및 3-DoF 운동 방정식
+비행체에 가해지는 순 가속도 $(a_x, a_y)$ 및 각가속도 $\alpha$는 중력 가속도($g$), 제어 추력($F_x, F_y$), 공기 저항 감쇠율($\eta = 0.95$)로 구성됩니다:
 
 $$a_x(t) = F_x(t), \quad a_y(t) = g + F_y(t) \quad (g = 40.0\text{ m/s}^2)$$
 
-$$V_x(t + \Delta t) = \left(V_x(t) + a_x(t)\Delta t\right) \cdot \eta$$
-
-$$V_y(t + \Delta t) = \left(V_y(t) + a_y(t)\Delta t\right) \cdot \eta$$
+$$V_x(t + \Delta t) = \left(V_x(t) + a_x(t)\Delta t\right) \cdot \eta, \quad V_y(t + \Delta t) = \left(V_y(t) + a_y(t)\Delta t\right) \cdot \eta$$
 
 $$x(t + \Delta t) = x(t) + V_x(t)\Delta t, \quad y(t + \Delta t) = y(t) + V_y(t)\Delta t$$
 
 ---
 
-### 3. FCS 자율 착륙 PD 피드백 제어 법칙 (PD Control Laws)
+### 3. FCS 자율 착륙 PD 피드백 제어 법칙 (3-DoF PD Control)
 자율 착륙 모드 시, 선박 데크의 타깃 지점과의 위치 편차($e_x, e_y$) 및 각도 오차($e_\theta$)에 비례-미분 제어기를 적용합니다:
 
 $$e_x(t) = x_{\text{ship\_center}}(t) - x_{\text{drone}}(t)$$
@@ -215,8 +239,6 @@ $$e_x(t) = x_{\text{ship\_center}}(t) - x_{\text{drone}}(t)$$
 $$e_y(t) = \left(y_{\text{ship\_center}}(t) - h_{\text{offset}}\right) - y_{\text{drone}}(t)$$
 
 $$e_\theta(t) = \theta_{\text{ship\_pitch}}(t) - \theta_{\text{drone}}(t)$$
-
-각 축별 가속도 및 자세 명령은 다음과 같이 연산됩니다:
 
 $$a_x(t) = K_{p,x} \cdot e_x(t) - K_{d,x} \cdot V_x(t) \quad (K_{p,x} = 2.0, K_{d,x} = 1.0)$$
 
@@ -237,7 +259,7 @@ $$\theta_{\text{tilt}} = \text{clamp}\left(\theta_{\text{raw}} + 90^\circ, -45.0
 
 수동 조종 모드 시 드론의 Pitch는 지수 평활 필터(EMA)를 통해 부드럽게 동기화됩니다:
 
-$$\theta_{\text{drone}}(t + \Delta t) = \theta_{\text{drone}}(t) + 0.1 \cdot \left(\theta_{\text{tilt}} - \theta_{\text{drone}}(t)\right)$$
+$$\theta_{\text{drone}}(t + \Delta t) = \theta_{\text{drone}}(t) + 0.14 \cdot \left(\theta_{\text{tilt}} - \theta_{\text{drone}}(t)\right)$$
 
 ---
 
@@ -250,7 +272,7 @@ $$\theta_{\text{drone}}(t + \Delta t) = \theta_{\text{drone}}(t) + 0.1 \cdot \le
 | **`A`** | **좌측 이동 (Thrust Left)** | 좌측 방향 가속도 적용 |
 | **`D`** | **우측 이동 (Thrust Right)** | 우측 방향 가속도 적용 |
 | **`T`** | **FCS 자율/수동 모드 토글** | `MODE: MANUAL` $\leftrightarrow$ `MODE: AUTO` 전환 |
-| **웹캠 손 제스처** | **비행체 Pitch 직관 조종** | 손을 좌우로 기울여 비행체의 틸트 각도([-45°, +45°]) 실시간 제어 |
+| **웹캠 손 제스처** | **3-DoF 비행체 Pitch 직관 조종** | 손을 좌우로 기울여 비행체의 틸트 각도([-45°, +45°]) 실시간 제어 (아바타 마스크 자동 보호) |
 | **창 닫기 / ESC** | **시뮬레이터 종료** | 카메라 리소스 해제 및 세션 안전 종료 |
 
 ---
@@ -282,7 +304,7 @@ pip install pygame opencv-python mediapipe numpy pillow matplotlib
 ```bash
 python main.py
 ```
-> **Tip**: 웹캠이 연결되어 있으면 우측 상단 HUD에 손 스켈레톤 인식이 자동으로 활성화됩니다. 웹캠이 없거나 인식이 안 될 경우에도 기본 키보드(WASD + T)를 통해 모든 비행 및 자율 착륙 기능을 정상적으로 체험할 수 있습니다.
+> **Privacy Tip**: 웹캠이 연결되면 파일럿 헬멧 아바타가 사용자 얼굴 영역을 자동으로 보호합니다. 웹캠이 연결되어 있지 않은 환경에서도 가상 아바타 HMI가 자동 구동되어 모든 3자유도 착함 기능을 정상 체험할 수 있습니다.
 
 ---
 
@@ -291,10 +313,15 @@ python main.py
 ```plaintext
 eVTOL-landing/
 ├── assets/                             # 고화질 시각화 자료 및 시연 에셋
+│   ├── demo_3dof_gesture_tilt.gif      # 3-DoF 신체 연동 틸트 시연 GIF (100 frames, 28 FPS)
+│   ├── demo_2dof_vs_3dof.gif           # 2-DoF vs 3-DoF 비교 시연 GIF (105 frames, 26 FPS)
 │   ├── demo_auto_landing.gif           # FCS 자율 착륙 시연 GIF (110 frames, 28 FPS)
 │   ├── demo_manual_flight.gif          # 수동 비행 및 HMI 제어 시연 GIF (90 frames)
 │   ├── demo_landing_success.gif        # 안전 착함 성공 순간 시연 GIF (80 frames)
 │   ├── demo_crash_impact.gif           # 충돌 판정 경고 시연 GIF (75 frames)
+│   ├── screenshot_avatar_hmi_tilt.png  # 아바타 헬멧 및 손 틸트 고화질 캡처
+│   ├── screenshot_3dof_attitude_alignment.png # 3-DoF 갑판-기체 각도 일치 안착 캡처
+│   ├── screenshot_2dof_crash_comparison.png   # 2-DoF 각도 불일치 충돌 캡처
 │   ├── screenshot_main_hud.png         # 전체 관제 대시보드 HUD 1280x720 원본 캡처
 │   ├── screenshot_auto_landing.png     # 자율 착륙 모드 캡처
 │   ├── screenshot_manual_flight.png    # 수동 조종 모드 캡처
@@ -306,7 +333,8 @@ eVTOL-landing/
 │   └── system_architecture.png        # 고해상도 시스템 아키텍처 다이어그램
 ├── config.py                           # 화면 해상도, 물리 상수, 색상 팔레트, 안전 임계값
 ├── controller.py                       # eVTOL 운동방정식 및 FCS PD 피드백 제어기
-├── hand_tracker.py                     # OpenCV & MediaPipe 기반 실시간 손 스켈레톤 HMI 추적 모듈
+├── hand_tracker.py                     # OpenCV & MediaPipe 기반 손 스켈레톤 HMI 및 아바타 마스크 모듈
+├── avatar_renderer.py                  # 사이버네틱 파일럿 헬멧 아바타 및 손 틸트 렌더러
 ├── ship_motion.py                      # 불규칙 파랑 합성 및 선체 Heave/Pitch 거동 물리 엔진
 ├── main.py                             # 메인 렌더링 루프, 전술 HUD, 물리 충돌 판정 엔진
 ├── generate_assets.py                  # 고품질 시각화 에셋 및 고프레임 GIF 생성 스크립트
@@ -321,19 +349,11 @@ eVTOL-landing/
 | 모듈 파일 | 주요 클래스 / 함수 | 핵심 알고리즘 및 역할 |
 |:---|:---|:---|
 | [`config.py`](file:///c:/eVTOL/config.py) | Configuration Variables | 해상도(1280x720), FPS(60), 물리 타임스텝($\Delta t$), 최대 안전 착함 속도(`MAX_LANDING_SPEED = 60.0`), 최대 각도 편차(`MAX_ANGLE_DIFF = 10.0`) 정의 |
-| [`controller.py`](file:///c:/eVTOL/controller.py) | `eVTOLController` | 위치/속도 적분기, 추진력 점진 가속 부스터, FCS 자율 착륙 비례-미분(PD) 제어기, 텔레메트리 큐 관리 |
-| [`hand_tracker.py`](file:///c:/eVTOL/hand_tracker.py) | `HandTracker` | OpenCV 비디오 스트림 획득, MediaPipe Hands 랜드마크 추적, 손목(0)-중지(9) 2D 방향 벡터 기반 기체 Pitch 연산 |
+| [`controller.py`](file:///c:/eVTOL/controller.py) | `eVTOLController` | 3-DoF 비행 역학 적분기, 추진력 점진 가속 부스터, FCS 자율 착륙 비례-미분(PD) 제어기, 텔레메트리 큐 관리 |
+| [`hand_tracker.py`](file:///c:/eVTOL/hand_tracker.py) | `HandTracker` | OpenCV 비디오 스트림 획득, 파일럿 헬멧 아바타 얼굴 마스킹(프라이버시 보호), MediaPipe Hands 추적, 손목(0)-중지(9) 2D 방향 벡터 기반 기체 Pitch 연산 |
+| [`avatar_renderer.py`](file:///c:/eVTOL/avatar_renderer.py) | `create_avatar_pilot_frame` | 사이버네틱 파일럿 헬멧, 네온 바이저 HUD, 붐 마이크 및 3-DoF 손 관절 틸팅 모듈 렌더링 |
 | [`ship_motion.py`](file:///c:/eVTOL/ship_motion.py) | `ShipMotion` | 다중 사인파 합성 Heave & Pitch 파랑 거동 수치 연산, 헬리패드 양 끝단 회전 변환, MPC 예측 타임라인 생성 |
 | [`main.py`](file:///c:/eVTOL/main.py) | `main()`, `draw_hud_box()` | 60 FPS Pygame 메인 루프, 선체 다각형 및 함교 렌더링, 실시간 3개 텔레메트리 그래프 그리기, Safe Touchdown 충돌 판정 |
-
----
-
-## 📈 향후 발전 과제 (Roadmap & Future Extensions)
-
-- [ ] **3차원 6자유도(6-DoF) 비행 동역학 확장**: Heave, Pitch뿐 아니라 Roll, Yaw, Sway, Surge를 포함한 전방위 착함 시뮬레이션
-- [ ] **강화학습(Reinforcement Learning) 기반 착함 정책 결합**: PPO(Proximal Policy Optimization) / SAC 기반 악천후 극복 자율 착륙 에이전트 학습
-- [ ] **MPC (Model Predictive Control) 선박 거동 예측기 탑재**: 파랑 예측 데이터를 기반으로 최적의 착함 타이밍(Quiescent Period) 자동 판정
-- [ ] **ROS2 / PX4 Autopilot Hardware-in-the-Loop (HIL) 연동**: 실제 비행 제어 컴퓨터(FCC)와의 MAVLink 통신 프로토콜 지원
 
 ---
 

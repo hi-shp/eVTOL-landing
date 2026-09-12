@@ -12,6 +12,7 @@ from config import (
 )
 from ship_motion import ShipMotion
 from controller import eVTOLController
+from avatar_renderer import create_avatar_pilot_frame
 
 def draw_text(surf, text, font, color, x, y):
     img = font.render(text, True, color)
@@ -49,70 +50,13 @@ def draw_wasd(screen, active_keys, font, x, y):
             pygame.draw.rect(screen, (60, 85, 110), (kx, ky, size, size), 1, border_radius=5)
         draw_text(screen, char, font, BLACK if is_active else WHITE, kx + 13, ky + 10)
 
-def create_synthetic_hand_frame(hand_angle_deg, frame_idx=0):
-    w, h = 320, 240
-    img = np.zeros((h, w, 3), dtype=np.uint8)
-    # Background subtle room lighting gradient
-    for y in range(h):
-        img[y, :] = (18 + int(12 * y / h), 22 + int(14 * y / h), 30 + int(18 * y / h))
-    
-    # Tech camera crosshairs / guides
-    cv2.line(img, (20, 20), (45, 20), (0, 180, 255), 1)
-    cv2.line(img, (20, 20), (20, 45), (0, 180, 255), 1)
-    cv2.line(img, (w - 20, 20), (w - 45, 20), (0, 180, 255), 1)
-    cv2.line(img, (w - 20, 20), (w - 20, 45), (0, 180, 255), 1)
-    cv2.line(img, (20, h - 20), (45, h - 20), (0, 180, 255), 1)
-    cv2.line(img, (20, h - 20), (20, h - 45), (0, 180, 255), 1)
-    cv2.line(img, (w - 20, h - 20), (w - 45, h - 20), (0, 180, 255), 1)
-    cv2.line(img, (w - 20, h - 20), (w - 20, h - 45), (0, 180, 255), 1)
-    
-    # Hand center and rotation
-    rad = math.radians(hand_angle_deg - 90)
-    cx, cy = 160, 145
-    cos_a, sin_a = math.cos(rad), math.sin(rad)
-    
-    lm0 = (cx, cy + 45)
-    def rot(dx, dy):
-        return (int(cx + dx * cos_a - dy * sin_a), int(cy + dx * sin_a + dy * cos_a))
-    
-    lm_thumb = [rot(-35, 15), rot(-45, -5), rot(-52, -25), rot(-58, -45)]
-    lm_index = [rot(-16, -10), rot(-22, -35), rot(-25, -55), rot(-28, -75)]
-    lm_middle = [rot(0, -15), rot(0, -42), rot(0, -68), rot(0, -92)]
-    lm_ring = [rot(16, -10), rot(20, -35), rot(22, -55), rot(24, -72)]
-    lm_pinky = [rot(32, -5), rot(38, -25), rot(42, -42), rot(45, -58)]
-    
-    palm_pts = np.array([lm0, lm_thumb[0], lm_index[0], lm_middle[0], lm_ring[0], lm_pinky[0]], dtype=np.int32)
-    cv2.fillPoly(img, [palm_pts], (42, 52, 62))
-    
-    fingers = [lm_thumb, lm_index, lm_middle, lm_ring, lm_pinky]
-    green = (0, 255, 130)
-    red = (30, 40, 255)
-    yellow = (0, 220, 255)
-    
-    for f in fingers:
-        prev = lm0 if f is lm_thumb or f is lm_pinky else f[0]
-        cv2.line(img, lm0, f[0], green, 2)
-        for pt in f:
-            cv2.line(img, prev, pt, green, 2)
-            cv2.circle(img, pt, 4, red, -1)
-            prev = pt
-    cv2.circle(img, lm0, 5, red, -1)
-    
-    lm9 = lm_middle[0]
-    cv2.arrowedLine(img, lm0, lm9, yellow, 2, tipLength=0.25)
-    
-    cv2.putText(img, "MediaPipe Hands HMI [Tracking OK]", (12, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 255, 180), 1)
-    cv2.putText(img, f"Tilt Angle (lm0->lm9): {hand_angle_deg:+.1f} deg", (12, 42), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (255, 255, 255), 1)
-    cv2.putText(img, "Direct Drone Pitch Coupling", (12, 225), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (170, 180, 190), 1)
-    
-    return img
-
 def render_simulator(screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
-                     history_ship_pitch, cam_frame, active_keys, fonts, msg="", msg_color=WHITE, msg_timer=0):
+                     history_ship_pitch, cam_frame, active_keys, fonts, msg="", msg_color=WHITE, msg_timer=0,
+                     extra_banner=""):
     screen.fill((5, 10, 15))
     font_xs, font_sm, font_md, font_lg, font_title_big = fonts
 
-    # 1. Background grid
+    # 1. Tactical grid
     for i in range(0, WIDTH, 80):
         pygame.draw.line(screen, (15, 25, 35), (i, 0), (i, HEIGHT), 1)
     for i in range(0, HEIGHT, 80):
@@ -125,7 +69,7 @@ def render_simulator(screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_
     sea_surf.fill((10, 25, 45, 190))
     screen.blit(sea_surf, (0, sea_y))
 
-    # 2. Detailed Ship Hull Rendering
+    # 2. Ship Hull
     rad = math.radians(ship_pitch)
     cos_r, sin_r = math.cos(rad), math.sin(rad)
     
@@ -147,7 +91,6 @@ def render_simulator(screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_
     pygame.draw.polygon(screen, (50, 65, 75), bridge_poly)
     pygame.draw.polygon(screen, (70, 95, 115), bridge_poly, 2)
     
-    # Bridge Windows
     win_x = p2[0] - 70 * cos_r + 40 * sin_r
     win_y = p2[1] - 70 * sin_r - 40 * cos_r
     pygame.draw.circle(screen, CYAN, (int(win_x), int(win_y)), 4)
@@ -162,12 +105,10 @@ def render_simulator(screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_
 
     # Helipad Main Deck
     pygame.draw.line(screen, (180, 195, 210), p1, p2, 6)
-    
     deck_mid_x = (p1[0] + p2[0]) / 2
     deck_mid_y = (p1[1] + p2[1]) / 2
     pygame.draw.circle(screen, YELLOW, (int(deck_mid_x), int(deck_mid_y)), 14, 2)
     pygame.draw.circle(screen, YELLOW, (int(deck_mid_x), int(deck_mid_y)), 4)
-    
     pygame.draw.circle(screen, GREEN, (int(p1[0]), int(p1[1])), 5)
     pygame.draw.circle(screen, RED, (int(p2[0]), int(p2[1])), 5)
 
@@ -192,6 +133,15 @@ def render_simulator(screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_
     rect = rotated_drone.get_rect(center=(int(evtol.x), int(evtol.y)))
     screen.blit(rotated_drone, rect.topleft)
 
+    # Attitude Reference Line from drone
+    drone_rad = math.radians(-evtol.angle)
+    ref_len = 55
+    ref_x1 = evtol.x - ref_len * math.cos(drone_rad)
+    ref_y1 = evtol.y - ref_len * math.sin(drone_rad)
+    ref_x2 = evtol.x + ref_len * math.cos(drone_rad)
+    ref_y2 = evtol.y + ref_len * math.sin(drone_rad)
+    pygame.draw.line(screen, (0, 240, 255, 100), (int(ref_x1), int(ref_y1)), (int(ref_x2), int(ref_y2)), 1)
+
     if evtol.is_auto:
         pygame.draw.line(screen, (80, 255, 130, 110), (int(evtol.x), int(evtol.y)), (int(deck_mid_x), int(deck_mid_y)), 1)
         draw_text(screen, "LOC: TRACKING DECK", font_xs, GREEN, int(evtol.x) + 48, int(evtol.y) - 10)
@@ -200,7 +150,7 @@ def render_simulator(screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_
     draw_hud_box(screen, 20, 20, 380, 125, "FLIGHT DYNAMICS & TELEMETRY", font_title_big)
     draw_text(screen, f"Vy (Descent Rate) : {evtol.vy:5.1f} m/s", font_md, CYAN, 30, 52)
     draw_text(screen, f"Vx (Lateral Vel)  : {evtol.vx:5.1f} m/s", font_md, WHITE, 30, 74)
-    draw_text(screen, f"DRONE PITCH       : {evtol.angle:5.1f} deg", font_md, YELLOW, 30, 96)
+    draw_text(screen, f"DRONE PITCH (θ_d) : {evtol.angle:5.1f} deg", font_md, YELLOW, 30, 96)
     draw_text(screen, f"SHIP DECK PITCH   : {ship_pitch:5.1f} deg", font_md, (150, 200, 255), 30, 118)
 
     gx, gw, gh = 20, 380, 165
@@ -236,7 +186,7 @@ def render_simulator(screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_
         pts_wave = [(gx + 10 + i * (gw - 20) / 100, gy_wave + gh/2 + 10 - (p * 2.5)) for i, p in enumerate(history_ship_pitch)]
         pygame.draw.lines(screen, (150, 200, 255), False, pts_wave, 2)
 
-    # 5. Right Webcam & HMI Feed
+    # 5. Right Webcam & Pilot Avatar HMI Feed
     if cam_frame is not None:
         rgb_cam_frame = cv2.cvtColor(cam_frame, cv2.COLOR_BGR2RGB)
         cam_w, cam_h = 380, 240
@@ -245,18 +195,28 @@ def render_simulator(screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_
         cx, cy = WIDTH - cam_w - 20, 20
         pygame.draw.rect(screen, (35, 75, 115), (cx - 2, cy - 2, cam_w + 4, cam_h + 4), 2)
         screen.blit(cam_surface, (cx, cy))
-        draw_text(screen, "HMI VISION TRACKER (MEDIAPIPE)", font_sm, CYAN, cx + 5, cy + cam_h + 8)
+        draw_text(screen, "VIRTUAL PILOT HMI (3-DoF BODY TRACKING)", font_sm, CYAN, cx + 5, cy + cam_h + 8)
 
     # 6. WASD Controller Panel & Flight Mode Indicator
     draw_wasd(screen, active_keys, font_md, WIDTH - 220, HEIGHT - 220)
-    mode_txt = "FCS MODE: [ AUTO LANDING ]" if evtol.is_auto else "FCS MODE: [ MANUAL FLIGHT ]"
+    mode_txt = "FCS MODE: [ AUTO LANDING ]" if evtol.is_auto else "FCS MODE: [ 3-DoF MANUAL ]"
     mode_color = GREEN if evtol.is_auto else CYAN
     draw_text(screen, mode_txt, font_md, mode_color, WIDTH - 260, HEIGHT - 85)
     draw_text(screen, "Press [T] to Toggle Autonomous FCS", font_sm, (160, 180, 200), WIDTH - 260, HEIGHT - 55)
 
+    # Top Center Banner (if any)
+    if extra_banner:
+        bw, bh = 600, 36
+        bx = WIDTH // 2 - bw // 2
+        pygame.draw.rect(screen, (10, 20, 35, 230), (bx, 15, bw, bh), border_radius=4)
+        pygame.draw.rect(screen, (0, 220, 255), (bx, 15, bw, bh), 1, border_radius=4)
+        b_img = font_md.render(extra_banner, True, (0, 240, 255))
+        b_rect = b_img.get_rect(center=(WIDTH // 2, 15 + bh // 2))
+        screen.blit(b_img, b_rect.topleft)
+
     # 7. Impact / Touchdown Pop-up Notification
     if msg_timer > 0:
-        box_w, box_h = 560, 80
+        box_w, box_h = 620, 80
         popup_x = WIDTH // 2 - box_w // 2
         popup_y = HEIGHT // 2 - box_h // 2 - 40
         overlay = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
@@ -273,15 +233,11 @@ def save_surface_as_image(surf, path):
     print(f"Saved PNG: {path}")
 
 def save_high_fps_gif(frames, path, fps=28):
-    """
-    Saves high frame count, smooth 1024x576 HD-optimized animated GIF.
-    """
     if not frames:
         return
     duration_ms = int(1000.0 / fps)
     converted = []
     for f in frames:
-        # High quality palette quantization with Floyd-Steinberg dithering
         p_img = f.convert("RGB").quantize(colors=256, method=Image.Resampling.LANCZOS, dither=Image.Dither.FLOYDSTEINBERG)
         converted.append(p_img)
         
@@ -309,37 +265,198 @@ def main():
     font_xs = pygame.font.SysFont("consolas", 11)
     font_sm = pygame.font.SysFont("consolas", 14)
     font_md = pygame.font.SysFont("consolas", 18, bold=True)
-    font_lg = pygame.font.SysFont("consolas", 36, bold=True)
+    font_lg = pygame.font.SysFont("consolas", 32, bold=True)
     font_title_big = pygame.font.SysFont("consolas", 16, bold=True)
     fonts = (font_xs, font_sm, font_md, font_lg, font_title_big)
 
     os.makedirs("assets", exist_ok=True)
-    target_gif_size = (960, 540) # Sharp 16:9 HD resolution
+    target_gif_size = (960, 540)
 
-    # -------------------------------------------------------------
-    # 1. SCENARIO AUTO LANDING (High FPS Smooth Descent)
-    # -------------------------------------------------------------
-    print("Generating High-FPS Scenario 1: Auto Landing...")
+    # -------------------------------------------------------------------------
+    # NEW SCENARIO A: 3-DoF NATURAL BODY-COUPLED TILT (Avatar Hand Sway <-> Drone Tilt)
+    # -------------------------------------------------------------------------
+    print("Generating NEW Scenario: 3-DoF Natural Body-Coupled Tilt...")
+    ship = ShipMotion()
+    evtol = eVTOLController()
+    evtol.is_auto = False
+    evtol.x = WIDTH // 2
+    evtol.y = 220
+    
+    frames_tilt = []
+    history_ship_pitch = []
+    prop_angle = 0
+    
+    # 100 frames of rich smooth swaying from -32 deg to +32 deg
+    for step in range(100):
+        ship_center, p1, p2, ship_pitch = ship.update()
+        
+        # Smooth wave for hand tilt: Left (-30 deg) to Right (+30 deg)
+        hand_tilt = 30.0 * math.sin(step * 0.08)
+        cam_frame = create_avatar_pilot_frame(hand_tilt, step)
+        
+        # Drone pitch dynamically couples to pilot's hand angle
+        evtol.angle += (hand_tilt - evtol.angle) * 0.16
+        evtol.vx = 18.0 * math.sin(step * 0.08)
+        evtol.vy = -5.0 * math.cos(step * 0.08)
+        evtol.x += evtol.vx * DT
+        evtol.y += evtol.vy * DT
+        
+        prop_angle = (prop_angle + 40) % 360
+        history_ship_pitch.append(ship_pitch)
+        if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
+        
+        evtol.history_vy.append(evtol.vy)
+        evtol.history_angle_diff.append(abs(evtol.angle - ship_pitch))
+        if len(evtol.history_vy) > 100: evtol.history_vy.pop(0)
+        if len(evtol.history_angle_diff) > 100: evtol.history_angle_diff.pop(0)
+        
+        render_simulator(
+            screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
+            history_ship_pitch, cam_frame, set(), fonts,
+            "", WHITE, 0,
+            extra_banner=f"3-DoF HMI COUPLING: Hand {hand_tilt:+.1f}° ➔ Drone Pitch {evtol.angle:+.1f}°"
+        )
+        
+        if step == 20:
+            save_surface_as_image(screen, "assets/screenshot_avatar_hmi_tilt.png")
+            create_crop(screen, pygame.Rect(WIDTH - 400 - 20, 20, 400, 280), "assets/screenshot_mediapipe_hmi.png")
+            create_crop(screen, pygame.Rect(WIDTH // 2 - 120, 160, 240, 140), "assets/screenshot_drone_tilt_zoom.png")
+            
+        img_data = pygame.image.tostring(screen, "RGB")
+        pil_img = Image.frombytes("RGB", (WIDTH, HEIGHT), img_data)
+        pil_img = pil_img.resize(target_gif_size, Image.Resampling.LANCZOS)
+        frames_tilt.append(pil_img)
+        
+    save_high_fps_gif(frames_tilt, "assets/demo_3dof_gesture_tilt.gif", fps=28)
+
+    # -------------------------------------------------------------------------
+    # NEW SCENARIO B: 2-DoF Landing (Crash) vs 3-DoF Landing (Safe Alignment)
+    # -------------------------------------------------------------------------
+    print("Generating NEW Scenario: 2-DoF vs 3-DoF Comparison...")
+    frames_compare = []
+    
+    # --- PHASE 1: 2-DoF Approach (Level Attitude = 0 deg, Slope mismatch Crash) ---
+    ship = ShipMotion()
+    evtol = eVTOLController()
+    evtol.is_auto = False
+    evtol.x = WIDTH // 2
+    evtol.angle = 0.0 # Fixed horizontal (2-DoF typical attitude)
+    
+    history_ship_pitch = []
+    for step in range(50):
+        ship_center, p1, p2, ship_pitch = ship.update()
+        cam_frame = create_avatar_pilot_frame(0.0, step) # flat hand
+        
+        prop_angle = (prop_angle + 40) % 360
+        history_ship_pitch.append(ship_pitch)
+        if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
+        
+        if step < 28:
+            evtol.y = (ship_center[1] - 110) + step * 3.2
+            evtol.vy = 35.0
+            evtol.angle = 0.0
+            msg = ""
+            msg_color = WHITE
+            timer = 0
+        else:
+            evtol.y = ship_center[1] - 25
+            evtol.vy = 0.0
+            evtol.angle = 0.0
+            msg = f"2-DoF FAILED: ANGLE MISMATCH ({abs(ship_pitch):.1f}° > 10°)"
+            msg_color = RED
+            timer = 60
+            
+        evtol.history_vy.append(evtol.vy)
+        evtol.history_angle_diff.append(abs(evtol.angle - ship_pitch))
+        
+        render_simulator(
+            screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
+            history_ship_pitch, cam_frame, set(), fonts,
+            msg, msg_color, timer,
+            extra_banner="[COMPARISON] Conventional 2-DoF: Horizontal Attitude Only (Unstable On Wave)"
+        )
+        
+        if step == 35:
+            save_surface_as_image(screen, "assets/screenshot_2dof_crash_comparison.png")
+            
+        img_data = pygame.image.tostring(screen, "RGB")
+        pil_img = Image.frombytes("RGB", (WIDTH, HEIGHT), img_data)
+        pil_img = pil_img.resize(target_gif_size, Image.Resampling.LANCZOS)
+        frames_compare.append(pil_img)
+
+    # --- PHASE 2: 3-DoF Approach (Hand aligns with Deck -> Perfect Touchdown) ---
+    ship = ShipMotion()
+    evtol = eVTOLController()
+    evtol.is_auto = False
+    evtol.x = WIDTH // 2
+    
+    for step in range(55):
+        ship_center, p1, p2, ship_pitch = ship.update()
+        
+        # Pilot naturally tilts hand to match the oscillating ship deck pitch
+        hand_tilt = ship_pitch
+        cam_frame = create_avatar_pilot_frame(hand_tilt, step)
+        
+        prop_angle = (prop_angle + 40) % 360
+        history_ship_pitch.append(ship_pitch)
+        if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
+        
+        if step < 26:
+            evtol.y = (ship_center[1] - 100) + step * 2.9
+            evtol.vy = 28.0
+            evtol.angle = hand_tilt # synced with body
+            msg = ""
+            msg_color = WHITE
+            timer = 0
+        else:
+            evtol.y = ship_center[1] - 25
+            evtol.vy = 0.0
+            evtol.angle = ship_pitch # 100% parallel to deck
+            msg = "3-DoF SUCCESS: BODY-ALIGNED TOUCHDOWN"
+            msg_color = GREEN
+            timer = 60
+            
+        evtol.history_vy.append(evtol.vy)
+        evtol.history_angle_diff.append(abs(evtol.angle - ship_pitch))
+        
+        render_simulator(
+            screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
+            history_ship_pitch, cam_frame, set(), fonts,
+            msg, msg_color, timer,
+            extra_banner="[COMPARISON] Proposed 3-DoF: Intuitive Body-Coupled Pitch Alignment (Stable)"
+        )
+        
+        if step == 32:
+            save_surface_as_image(screen, "assets/screenshot_3dof_attitude_alignment.png")
+            
+        img_data = pygame.image.tostring(screen, "RGB")
+        pil_img = Image.frombytes("RGB", (WIDTH, HEIGHT), img_data)
+        pil_img = pil_img.resize(target_gif_size, Image.Resampling.LANCZOS)
+        frames_compare.append(pil_img)
+        
+    save_high_fps_gif(frames_compare, "assets/demo_2dof_vs_3dof.gif", fps=26)
+
+    # -------------------------------------------------------------------------
+    # REFRESH SCENARIOS: Auto Landing, Manual Flight with Avatar Masking
+    # -------------------------------------------------------------------------
+    print("Refreshing Scenario 1: Auto Landing with Avatar HMI...")
     ship = ShipMotion()
     evtol = eVTOLController()
     evtol.is_auto = True
     evtol.x = WIDTH // 2 - 90
     evtol.y = 110
-    
     history_ship_pitch = []
-    prop_angle = 0
     frames_auto = []
     
-    for step in range(110): # 110 frames for super smooth motion
+    for step in range(110):
         ship_center, p1, p2, ship_pitch = ship.update()
         hand_tilt = ship_pitch * 0.85
-        cam_frame = create_synthetic_hand_frame(hand_tilt, step)
+        cam_frame = create_avatar_pilot_frame(hand_tilt, step)
         evtol.update({}, hand_tilt, ship_center, ship_pitch)
         
         prop_angle = (prop_angle + 40) % 360
         history_ship_pitch.append(ship_pitch)
-        if len(history_ship_pitch) > 100:
-            history_ship_pitch.pop(0)
+        if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
             
         render_simulator(
             screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
@@ -349,12 +466,7 @@ def main():
         if step == 50:
             save_surface_as_image(screen, "assets/screenshot_main_hud.png")
             save_surface_as_image(screen, "assets/screenshot_auto_landing.png")
-            save_surface_as_image(screen, "assets/screenshot_ship_wave_dynamics.png")
-            # Save zoomed crops for detailed README showcases
-            create_crop(screen, pygame.Rect(WIDTH - 400 - 20, 20, 400, 280), "assets/screenshot_mediapipe_hmi.png")
-            create_crop(screen, pygame.Rect(20, 160, 380, 535), "assets/screenshot_telemetry_graphs.png")
-
-        # Every frame for maximum smoothness!
+            
         img_data = pygame.image.tostring(screen, "RGB")
         pil_img = Image.frombytes("RGB", (WIDTH, HEIGHT), img_data)
         pil_img = pil_img.resize(target_gif_size, Image.Resampling.LANCZOS)
@@ -362,86 +474,23 @@ def main():
             
     save_high_fps_gif(frames_auto, "assets/demo_auto_landing.gif", fps=28)
 
-    # -------------------------------------------------------------
-    # 2. SCENARIO LANDING SUCCESS (Approach -> Touchdown -> Stable)
-    # -------------------------------------------------------------
-    print("Generating High-FPS Scenario 2: Landing Success Sequence...")
-    ship = ShipMotion()
-    evtol = eVTOLController()
-    evtol.is_auto = True
-    evtol.x = WIDTH // 2
-    
-    for i in range(80):
-        evtol.history_vy.append(45.0 - i * 0.25)
-        evtol.history_angle_diff.append(max(0.8, 7.0 - i * 0.08))
-        history_ship_pitch.append(8.0 * math.sin(0.8 * (i * DT)))
-        
-    frames_success = []
-    for step in range(80):
-        ship_center, p1, p2, ship_pitch = ship.update()
-        
-        # Smooth approach to deck
-        if step < 25:
-            evtol.y = (ship_center[1] - 65) + step * 1.6
-            evtol.vy = 28.0 - step * 0.4
-            evtol.angle = ship_pitch - 1.2
-            msg = ""
-            msg_color = WHITE
-            timer = 0
-        else:
-            evtol.y = ship_center[1] - 25
-            evtol.vy = 0.0
-            evtol.angle = ship_pitch
-            msg = "LANDING SUCCESS: SAFE TOUCHDOWN"
-            msg_color = GREEN
-            timer = 60
-            
-        cam_frame = create_synthetic_hand_frame(ship_pitch, step)
-        prop_angle = (prop_angle + 40) % 360
-        
-        history_ship_pitch.append(ship_pitch)
-        if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
-        
-        render_simulator(
-            screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
-            history_ship_pitch, cam_frame, set(), fonts, msg, msg_color, timer
-        )
-        
-        if step == 35:
-            save_surface_as_image(screen, "assets/screenshot_landing_success.png")
-            
-        img_data = pygame.image.tostring(screen, "RGB")
-        pil_img = Image.frombytes("RGB", (WIDTH, HEIGHT), img_data)
-        pil_img = pil_img.resize(target_gif_size, Image.Resampling.LANCZOS)
-        frames_success.append(pil_img)
-            
-    save_high_fps_gif(frames_success, "assets/demo_landing_success.gif", fps=26)
-
-    # -------------------------------------------------------------
-    # 3. SCENARIO MANUAL FLIGHT (Hand Gesture Tilt & WASD Maneuvers)
-    # -------------------------------------------------------------
-    print("Generating High-FPS Scenario 3: Manual Flight & Hand Control...")
+    print("Refreshing Scenario 3: Manual Flight with Avatar HMI...")
     ship = ShipMotion()
     evtol = eVTOLController()
     evtol.is_auto = False
     evtol.x = WIDTH // 2 - 140
     evtol.y = 220
-    
     history_ship_pitch = []
     frames_manual = []
     
     for step in range(90):
         ship_center, p1, p2, ship_pitch = ship.update()
-        
-        # Smooth hand tilt sine wave
         hand_tilt = 24.0 * math.sin(step * 0.08)
-        cam_frame = create_synthetic_hand_frame(hand_tilt, step)
+        cam_frame = create_avatar_pilot_frame(hand_tilt, step)
         
         active_keys = set()
-        if (step // 15) % 2 == 0:
-            active_keys.add("W")
-        if step > 25 and step < 70:
-            active_keys.add("D")
+        if (step // 15) % 2 == 0: active_keys.add("W")
+        if step > 25 and step < 70: active_keys.add("D")
             
         evtol.angle += (hand_tilt - evtol.angle) * 0.14
         evtol.vx = 32.0 * math.sin(step * 0.08)
@@ -474,62 +523,7 @@ def main():
             
     save_high_fps_gif(frames_manual, "assets/demo_manual_flight.gif", fps=26)
 
-    # -------------------------------------------------------------
-    # 4. SCENARIO CRASH IMPACT (Hard Descent Over Limit)
-    # -------------------------------------------------------------
-    print("Generating High-FPS Scenario 4: Crash Impact...")
-    ship = ShipMotion()
-    evtol = eVTOLController()
-    evtol.is_auto = False
-    
-    for i in range(80):
-        evtol.history_vy.append(30.0 + i * 0.7)
-        evtol.history_angle_diff.append(14.0 + i * 0.15)
-        history_ship_pitch.append(12.0 * math.sin(0.8 * (i * DT)))
-        
-    frames_crash = []
-    for step in range(75):
-        ship_center, p1, p2, ship_pitch = ship.update()
-        
-        if step < 20:
-            evtol.x = ship_center[0] - 30
-            evtol.y = (ship_center[1] - 120) + step * 4.8
-            evtol.vy = 78.0
-            evtol.angle = ship_pitch + 22.0
-            msg = ""
-            msg_color = WHITE
-            timer = 0
-        else:
-            evtol.x = ship_center[0] - 30
-            evtol.y = ship_center[1] - 25
-            evtol.vy = 0.0
-            evtol.angle = ship_pitch + 22.0
-            msg = "CRASHED! IMPACT: 78 m/s (LIMIT: 60)"
-            msg_color = RED
-            timer = 60
-            
-        prop_angle = (prop_angle + 40) % 360
-        cam_frame = create_synthetic_hand_frame(-22.0, step)
-        
-        history_ship_pitch.append(ship_pitch)
-        if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
-        
-        render_simulator(
-            screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
-            history_ship_pitch, cam_frame, {"S"}, fonts, msg, msg_color, timer
-        )
-        
-        if step == 26:
-            save_surface_as_image(screen, "assets/screenshot_crash_impact.png")
-            
-        img_data = pygame.image.tostring(screen, "RGB")
-        pil_img = Image.frombytes("RGB", (WIDTH, HEIGHT), img_data)
-        pil_img = pil_img.resize(target_gif_size, Image.Resampling.LANCZOS)
-        frames_crash.append(pil_img)
-            
-    save_high_fps_gif(frames_crash, "assets/demo_crash_impact.gif", fps=26)
-
-    print("=== All High-FPS and High-Quality Visual Assets Completed! ===")
+    print("=== All 3-DoF Body-Coupled & Avatar Visual Assets Generated! ===")
 
 if __name__ == "__main__":
     main()
