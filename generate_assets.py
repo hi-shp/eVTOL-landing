@@ -367,10 +367,11 @@ def main():
     evtol.x = 660
     evtol.angle = 0.0
     history_ship_pitch = []
+    tracker_compare = HandTracker()
     
     for step in range(45):
         ship_center, p1, p2, ship_pitch = ship.update()
-        cam_frame = create_avatar_pilot_frame(0.0, step)
+        cam_frame, _ = tracker_compare.get_tilt()
         
         prop_angle = (prop_angle + 40) % 360
         history_ship_pitch.append(ship_pitch)
@@ -417,8 +418,7 @@ def main():
     
     for step in range(50):
         ship_center, p1, p2, ship_pitch = ship.update()
-        hand_tilt = ship_pitch # Pilot matches deck angle
-        cam_frame = create_avatar_pilot_frame(hand_tilt, step)
+        cam_frame, hand_tilt = tracker_compare.get_tilt()
         
         prop_angle = (prop_angle + 40) % 360
         history_ship_pitch.append(ship_pitch)
@@ -427,7 +427,7 @@ def main():
         if step < 24:
             evtol.y = (ship_center[1] - 95) + step * 3.0
             evtol.vy = 28.0
-            evtol.angle = hand_tilt
+            evtol.angle = ship_pitch
             msg = ""
             msg_color = WHITE
             timer = 0
@@ -470,11 +470,11 @@ def main():
     evtol.y = 110
     history_ship_pitch = []
     frames_auto = []
+    tracker_auto = HandTracker()
     
     for step in range(95):
         ship_center, p1, p2, ship_pitch = ship.update()
-        hand_tilt = ship_pitch * 0.85
-        cam_frame = create_avatar_pilot_frame(hand_tilt, step)
+        cam_frame, hand_tilt = tracker_auto.get_tilt()
         evtol.update({}, hand_tilt, ship_center, ship_pitch)
         
         prop_angle = (prop_angle + 40) % 360
@@ -509,11 +509,11 @@ def main():
     evtol.y = 210
     history_ship_pitch = []
     frames_manual = []
+    tracker_manual = HandTracker()
     
     for step in range(80):
         ship_center, p1, p2, ship_pitch = ship.update()
-        hand_tilt = 24.0 * math.sin(step * 0.08)
-        cam_frame = create_avatar_pilot_frame(hand_tilt, step)
+        cam_frame, hand_tilt = tracker_manual.get_tilt()
         
         active_keys = set()
         if (step // 15) % 2 == 0: active_keys.add("W")

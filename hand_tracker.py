@@ -117,12 +117,7 @@ class HandTracker:
                 
                 raw_angle = math.degrees(math.atan2(dy, dx)) + 90
                 
-                if self.is_video_mode:
-                    # Neutral calibrated for pilot reaching forward toward camera
-                    tilt = -(raw_angle - 27.0)
-                else:
-                    tilt = raw_angle
-                    
+                tilt = raw_angle
                 tilt_angle = max(-45.0, min(45.0, tilt))
                 self.last_tilt = tilt_angle
                 
