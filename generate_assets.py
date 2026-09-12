@@ -13,6 +13,7 @@ from config import (
 from ship_motion import ShipMotion
 from controller import eVTOLController
 from avatar_renderer import create_avatar_pilot_frame
+from hand_tracker import HandTracker
 
 def draw_text(surf, text, font, color, x, y):
     img = font.render(text, True, color)
@@ -297,23 +298,22 @@ def main():
     evtol.is_auto = False
     evtol.x = 660 # Center of operational area
     evtol.y = 230
+    tracker = HandTracker()
     
     frames_tilt = []
     history_ship_pitch = []
     prop_angle = 0
     
-    # 90 smooth frames swaying -28 deg (left) to +28 deg (right)
+    # 90 smooth frames swaying -25 deg (left) to +25 deg (right) via live MediaPipe video tracking
     for step in range(90):
         ship_center, p1, p2, ship_pitch = ship.update()
         
-        # Smooth hand tilt sine wave:
-        # positive = RIGHT, negative = LEFT
-        hand_tilt = 28.0 * math.sin(step * 0.08)
-        cam_frame = create_avatar_pilot_frame(hand_tilt, step)
+        # Real-time hand tracking on pilot gesture video
+        cam_frame, hand_tilt = tracker.get_tilt()
         
-        # Drone pitch aligns with hand:
-        evtol.angle += (hand_tilt - evtol.angle) * 0.16
-        evtol.vx = 18.0 * math.sin(step * 0.08)
+        # Drone pitch aligns with live detected hand tilt:
+        evtol.angle += (hand_tilt - evtol.angle) * 0.20
+        evtol.vx = 18.0 * (hand_tilt / 25.0)
         evtol.vy = -4.0 * math.cos(step * 0.08)
         evtol.x += evtol.vx * DT
         evtol.y += evtol.vy * DT
@@ -332,7 +332,7 @@ def main():
             screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
             history_ship_pitch, cam_frame, set(), fonts,
             "", WHITE, 0,
-            extra_banner=f"3-DoF BODY COUPLING: Hand {hand_tilt:+.1f}° [{dir_label}] ➔ Drone Pitch {evtol.angle:+.1f}°"
+            extra_banner=f"3-DoF BODY COUPLING: Hand {hand_tilt:+.1f} deg [{dir_label}] -> Drone Pitch {evtol.angle:+.1f} deg"
         )
         
         if step == 20:

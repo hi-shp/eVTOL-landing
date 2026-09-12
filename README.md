@@ -40,13 +40,28 @@
 
 ## 2. 조종사 신체 연동 HMI 및 가상 파일럿 아바타
 
-실제 조종사의 얼굴 노출을 방지하고 프라이버시를 보호하기 위해 웹캠 화면에 3D 스타일 비행 조종사 아바타가 적용되어 있습니다.
+실제 조종사의 프라이버시를 보호하고 불쾌한 골짜기(Uncanny Valley)를 배제하기 위해, 전술 비행 헬멧과 블랙 보잉 선글라스를 착용한 조종사 아바타가 기본 적용되어 있습니다.
 
-조종사가 손을 좌우로 기울이면 MediaPipe 21개 관절 스켈레톤이 실시간으로 손 각도를 계산하고, 상공의 비행체가 조종사의 손 움직임과 정확히 동일한 방향(손 우측 틸트 시 드론 우측 틸트, 손 좌측 틸트 시 드론 좌측 틸트)으로 평행 자세 기준선과 함께 동기화되어 회전합니다.
+단순히 손 이미지를 2D로 회전시키는 방식이 아니라, 조종사가 카메라 방향으로 팔을 뻗은 상태(원근 단축 뷰)로 손목을 좌우로 기울이는 비디오 스트림(`assets/pilot_gesture_feed.mp4`)을 파이프라인에 직접 입력합니다. MediaPipe Hands 비전 신경망은 이 비디오 프레임으로부터 실시간으로 손목(Landmark 0)과 손가락 21개 관절 스켈레톤을 직접 검출 및 추적합니다.
+
+조종사가 손을 기울이면 추출된 자세 벡터(노란색 제어 화살표)에 따라 비행체의 피치 자세각과 평행 기준선이 동일한 방향(우측 틸트 시 드론 우측 기울기, 좌측 틸트 시 드론 좌측 기울기)으로 완벽하게 동기화되어 회전합니다.
 
 <div align="center">
   <img src="assets/demo_3dof_gesture_tilt.gif" alt="3-DoF Gesture Tilt Coupling Demo" width="920"/>
-  <p>[실시간 제스처 연동] 가상 아바타 손 흔들림(Tilt 좌우 28도)에 따른 비행체 피치 자세각 실시간 1:1 동기화</p>
+  <p>[실시간 제스처 연동] 비디오 스트림 기반 MediaPipe 21개 관절 스켈레톤 실시간 추출 및 비행체 피치각 1:1 동기화</p>
+</div>
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">MediaPipe 21-Joint 스켈레톤 검출 상세 뷰</td>
+      <td align="center">3자유도 신체 연동 착함 시뮬레이터 전체 관제 화면</td>
+    </tr>
+    <tr>
+      <td><img src="assets/screenshot_mediapipe_hmi.png" alt="MediaPipe Skeleton Detail" width="450"/></td>
+      <td><img src="assets/screenshot_avatar_hmi_tilt.png" alt="3-DoF Coupled View" width="450"/></td>
+    </tr>
+  </table>
 </div>
 
 ---
@@ -180,4 +195,4 @@ pip install pygame opencv-python mediapipe numpy pillow matplotlib
 python main.py
 ```
 
-웹캠이 연결되어 있으면 가상 조종사 아바타가 사용자의 얼굴 영역을 보호하며 손 관절 제스처를 인식합니다. 웹캠이 없는 환경에서도 가상 아바타 HMI 시뮬레이션 모드가 자동 구동되어 3자유도 착함 기능을 정상 체험할 수 있습니다.
+웹캠이 연결되어 있으면 가상 조종사 아바타가 사용자의 얼굴 영역을 보호하며 실시간 손 관절 제스처를 인식합니다. 웹캠이 없는 환경에서도 내장된 비디오 스트림(`assets/pilot_gesture_feed.mp4`)을 통해 MediaPipe Hands 21개 관절 스켈레톤 추적 및 3자유도 착함 기능이 완벽하게 실시간 구동됩니다.
