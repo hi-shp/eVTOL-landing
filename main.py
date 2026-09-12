@@ -177,13 +177,14 @@ def main():
         screen.blit(rotated_drone, rect.topleft)
 
         # 자세 지시선 (기체 동체와 완벽히 평행한 방향으로 회전)
-        drone_rad = math.radians(evtol.angle)
-        ref_len = 50
-        ref_x1 = evtol.x - ref_len * math.cos(drone_rad)
-        ref_y1 = evtol.y - ref_len * math.sin(drone_rad)
-        ref_x2 = evtol.x + ref_len * math.cos(drone_rad)
-        ref_y2 = evtol.y + ref_len * math.sin(drone_rad)
-        pygame.draw.line(screen, (0, 220, 240), (int(ref_x1), int(ref_y1)), (int(ref_x2), int(ref_y2)), 1)
+        # 선체 표면 목표 각도선 (파란색 선: 선체 기울기와 실시간 동기화)
+        target_rad = math.radians(ship_pitch)
+        ref_len = 55
+        ref_x1 = evtol.x - ref_len * math.cos(target_rad)
+        ref_y1 = evtol.y - ref_len * math.sin(target_rad)
+        ref_x2 = evtol.x + ref_len * math.cos(target_rad)
+        ref_y2 = evtol.y + ref_len * math.sin(target_rad)
+        pygame.draw.line(screen, (0, 220, 240), (int(ref_x1), int(ref_y1)), (int(ref_x2), int(ref_y2)), 2)
 
         # 텔레메트리 레이아웃: 데이터 텍스트 패널
         draw_hud_box(screen, 20, 20, 380, 120, "FLIGHT DYNAMICS", font_title_big)

@@ -1,10 +1,9 @@
 """
 create_gesture_video.py
 Generates a realistic MP4 video feed ('assets/pilot_gesture_feed.mp4')
-showing a naval pilot wearing a flight helmet and aviator sunglasses
-in a cockpit, reaching an outstretched arm and hand forward toward the camera
-in foreshortened perspective, naturally tilting the hand left and right to control
-eVTOL 3-DoF pitch.
+showing a naval drone operator on a ship flight deck, reaching an outstretched arm and hand
+forward toward the camera in dramatic foreshortened perspective, naturally tilting the hand
+left and right to control eVTOL 3-DoF pitch.
 
 This video is fed into cv2.VideoCapture in hand_tracker.py, where MediaPipe Hands
 genuinely detects and tracks the wrist and finger skeleton in real time.
@@ -20,13 +19,6 @@ def generate_pilot_gesture_video(output_path="assets/pilot_gesture_feed.mp4", to
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     bg_path = os.path.join(os.path.dirname(__file__), "assets", "pilot_avatar_base.jpg")
-    if not os.path.exists(bg_path):
-        # Fallback to brain artifact if not yet copied
-        artifact_bg = r"C:\Users\Park\.gemini\antigravity-ide\brain\8971b28f-bce3-45a8-92e3-00f0e0754426\cool_pilot_sunglasses_1789207566612.jpg"
-        if os.path.exists(artifact_bg):
-            import shutil
-            shutil.copyfile(artifact_bg, bg_path)
-            
     bg_raw = cv2.imread(bg_path)
     if bg_raw is None:
         raise FileNotFoundError(f"Cannot load background avatar from {bg_path}")
@@ -42,7 +34,8 @@ def generate_pilot_gesture_video(output_path="assets/pilot_gesture_feed.mp4", to
         
     hand_bgra = cv2.imread(hand_path, cv2.IMREAD_UNCHANGED)
     
-    target_h = 320
+    # Larger hand reaching closer to camera in foreshortened perspective
+    target_h = 420
     target_w = int(hand_bgra.shape[1] * (target_h / hand_bgra.shape[0]))
     hand_scaled = cv2.resize(hand_bgra, (target_w, target_h), interpolation=cv2.INTER_LANCZOS4)
     
@@ -61,7 +54,7 @@ def generate_pilot_gesture_video(output_path="assets/pilot_gesture_feed.mp4", to
         min_tracking_confidence=0.2
     )
     
-    print(f"Generating {total_frames} frames of pilot gesture video at {w}x{h}...")
+    print(f"Generating {total_frames} frames of shipboard drone operator video at {w}x{h}...")
     
     detection_count = 0
     for i in range(total_frames):
@@ -75,11 +68,10 @@ def generate_pilot_gesture_video(output_path="assets/pilot_gesture_feed.mp4", to
         sway_x = int(4.0 * math.cos(phase))
         sway_y = int(2.0 * math.sin(phase))
         
-        # Cockpit micro-vibration
+        # Ship deck motion / micro-vibration
         bg_jitter_x = int(1.0 * math.sin(i * 0.8))
         bg_jitter_y = int(0.5 * math.cos(i * 0.9))
         
-        # Jittered background
         M_bg = np.float32([[1, 0, bg_jitter_x], [0, 1, bg_jitter_y]])
         frame_bg = cv2.warpAffine(bg_base, M_bg, (w, h), borderMode=cv2.BORDER_REPLICATE)
         
@@ -87,9 +79,9 @@ def generate_pilot_gesture_video(output_path="assets/pilot_gesture_feed.mp4", to
         M_hand = cv2.getRotationMatrix2D((pc_x, pc_y), delta_rot, scale_factor)
         rot_hand = cv2.warpAffine(hand_scaled, M_hand, (target_w, target_h), flags=cv2.INTER_LANCZOS4)
         
-        # Base placement: reaching from pilot shoulder toward camera
-        ox = 160 + sway_x
-        oy = 165 + sway_y
+        # Base placement: reaching from operator toward camera lens
+        ox = 120 + sway_x
+        oy = 110 + sway_y
         
         composite = frame_bg.copy()
         h_clip = min(target_h, h - oy)

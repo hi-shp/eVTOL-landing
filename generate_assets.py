@@ -135,14 +135,14 @@ def render_simulator(screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_
     rect = rotated_drone.get_rect(center=(int(evtol.x), int(evtol.y)))
     screen.blit(rotated_drone, rect.topleft)
 
-    # Attitude indicator line (strictly parallel to drone orientation)
-    drone_rad = math.radians(evtol.angle)
-    ref_len = 50
-    ref_x1 = evtol.x - ref_len * math.cos(drone_rad)
-    ref_y1 = evtol.y - ref_len * math.sin(drone_rad)
-    ref_x2 = evtol.x + ref_len * math.cos(drone_rad)
-    ref_y2 = evtol.y + ref_len * math.sin(drone_rad)
-    pygame.draw.line(screen, (0, 220, 240), (int(ref_x1), int(ref_y1)), (int(ref_x2), int(ref_y2)), 1)
+    # Target ship deck surface attitude reference line (synced with ship pitch)
+    deck_target_rad = math.radians(ship_pitch)
+    ref_len = 55
+    ref_x1 = evtol.x - ref_len * math.cos(deck_target_rad)
+    ref_y1 = evtol.y - ref_len * math.sin(deck_target_rad)
+    ref_x2 = evtol.x + ref_len * math.cos(deck_target_rad)
+    ref_y2 = evtol.y + ref_len * math.sin(deck_target_rad)
+    pygame.draw.line(screen, (0, 220, 240), (int(ref_x1), int(ref_y1)), (int(ref_x2), int(ref_y2)), 2)
 
     if evtol.is_auto:
         pygame.draw.line(screen, (80, 255, 130), (int(evtol.x), int(evtol.y)), (int(deck_mid_x), int(deck_mid_y)), 1)
@@ -197,7 +197,7 @@ def render_simulator(screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_
         cam_surface = pygame.surfarray.make_surface(rgb_cam_frame.swapaxes(0, 1))
         pygame.draw.rect(screen, (35, 75, 115), (cx - 2, cy - 2, cam_w + 4, cam_h + 4), 2)
         screen.blit(cam_surface, (cx, cy))
-        draw_text(screen, "VIRTUAL PILOT HMI (3-DoF BODY TRACKING)", font_sm, CYAN, cx + 5, cy + cam_h + 6)
+        draw_text(screen, "PILOT WEBCAM HMI (3-DoF BODY TRACKING)", font_sm, CYAN, cx + 5, cy + cam_h + 6)
 
     # 6. WASD Controller Panel & Flight Mode Indicator
     draw_wasd(screen, active_keys, font_md, WIDTH - 200, HEIGHT - 210)
@@ -301,6 +301,7 @@ def main():
     tracker = HandTracker()
     
     frames_tilt = []
+    frames_telemetry = []
     history_ship_pitch = []
     prop_angle = 0
     
@@ -344,7 +345,14 @@ def main():
         pil_img = pil_img.resize(target_gif_size, Image.Resampling.LANCZOS)
         frames_tilt.append(pil_img)
         
+        # Dedicated Telemetry Graph Panel Recording
+        sub_telemetry = screen.subsurface(pygame.Rect(18, 18, 374, 680))
+        t_data = pygame.image.tostring(sub_telemetry, "RGB")
+        pil_t = Image.frombytes("RGB", (374, 680), t_data)
+        frames_telemetry.append(pil_t)
+        
     save_flicker_free_gif(frames_tilt, "assets/demo_3dof_gesture_tilt.gif", fps=28)
+    save_flicker_free_gif(frames_telemetry, "assets/demo_telemetry_graphs.gif", fps=28)
 
     # -------------------------------------------------------------------------
     # 2. SCENARIO 2-DoF vs 3-DoF COMPARISON
@@ -379,7 +387,7 @@ def main():
             evtol.y = ship_center[1] - 25
             evtol.vy = 0.0
             evtol.angle = 0.0
-            msg = f"2-DoF FAILED: ANGLE MISMATCH ({abs(ship_pitch):.1f}° > 10°)"
+            msg = f"2-DoF FAILED: ANGLE MISMATCH ({abs(ship_pitch):.1f} deg > 10 deg)"
             msg_color = RED
             timer = 60
             

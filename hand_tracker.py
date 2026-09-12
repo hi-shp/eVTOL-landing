@@ -135,9 +135,9 @@ class HandTracker:
         if not self.is_video_mode and self.enable_avatar_privacy:
             self.draw_avatar_face_mask(frame)
             
-        # Top-left HUD badge: Avatar Mask
+        # Top-left HUD badge: Vision HMI
         cv2.rectangle(frame, (6, 6), (155, 22), (10, 15, 22), -1)
-        cv2.putText(frame, "AVATAR MASK: ACTIVE", (10, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 150), 1)
+        cv2.putText(frame, "WEBCAM HMI: ACTIVE", (10, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 150), 1)
         
         # Top-right HUD badge: Body Pitch
         dir_txt = "RIGHT" if tilt_angle > 0.5 else ("LEFT" if tilt_angle < -0.5 else "LEVEL")

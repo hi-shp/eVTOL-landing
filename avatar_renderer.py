@@ -60,7 +60,7 @@ def get_avatar_video_frame(frame_idx=0):
             cv2.arrowedLine(frame, p0, p9, (0, 235, 255), 2, tipLength=0.25)
             
     cv2.rectangle(frame, (6, 6), (155, 22), (10, 15, 22), -1)
-    cv2.putText(frame, "AVATAR MASK: ACTIVE", (10, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 150), 1)
+    cv2.putText(frame, "WEBCAM HMI: ACTIVE", (10, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 150), 1)
     
     dir_txt = "RIGHT" if tilt_angle > 0.5 else ("LEFT" if tilt_angle < -0.5 else "LEVEL")
     cv2.rectangle(frame, (168, 6), (314, 22), (10, 15, 22), -1)
