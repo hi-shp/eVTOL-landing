@@ -216,21 +216,28 @@ def main():
         # 우측 웹캠 화면 렌더링
         if cam_frame is not None:
             rgb_cam_frame = cv2.cvtColor(cam_frame, cv2.COLOR_BGR2RGB)
-            cam_w, cam_h = 400, 300
+            cam_w, cam_h = 320, 240
             rgb_cam_frame = cv2.resize(rgb_cam_frame, (cam_w, cam_h))
             cam_surface = pygame.surfarray.make_surface(rgb_cam_frame.swapaxes(0, 1))
             screen.blit(cam_surface, (WIDTH - cam_w - 20, 20))
+            pygame.draw.rect(screen, (35, 75, 115), (WIDTH - cam_w - 22, 18, cam_w + 4, cam_h + 4), 2)
 
         # WASD 조종 패널 및 모드 UI
         draw_wasd(screen, keys, font_md, WIDTH - 200, HEIGHT - 200)
-        mode_txt = "MODE: AUTO" if evtol.is_auto else "MODE: MANUAL"
+        mode_txt = "MODE: AUTO" if evtol.is_auto else "MODE: 3-DoF MANUAL"
         draw_text(screen, mode_txt, font_md, GREEN if evtol.is_auto else CYAN, WIDTH - 220, HEIGHT - 90)
         draw_text(screen, "[T] Toggle Mode", font_sm, GRAY, WIDTH - 220, HEIGHT - 60)
 
-        # 중앙 메시지 팝업
+        # 중앙 메시지 팝업 (텍스트 중앙 정렬로 글자 짤림 방지)
         if msg_timer > 0:
-            pygame.draw.rect(screen, (0, 0, 0, 150), (WIDTH//2 - 250, HEIGHT//2 - 40, 500, 80))
-            draw_text(screen, msg, font_lg, msg_color, WIDTH//2 - 230, HEIGHT//2 - 20)
+            bw, bh = 500, 60
+            bx = WIDTH // 2 - bw // 2
+            by = HEIGHT // 2 - bh // 2 - 20
+            pygame.draw.rect(screen, (10, 16, 26), (bx, by, bw, bh), border_radius=6)
+            pygame.draw.rect(screen, msg_color, (bx, by, bw, bh), 2, border_radius=6)
+            t_img = font_md.render(msg, True, msg_color)
+            t_rect = t_img.get_rect(center=(bx + bw // 2, by + bh // 2))
+            screen.blit(t_img, t_rect.topleft)
             msg_timer -= 1
 
         pygame.display.flip()
