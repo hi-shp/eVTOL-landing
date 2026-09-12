@@ -461,134 +461,87 @@ def main():
     save_flicker_free_gif(frames_compare, "assets/demo_2dof_vs_3dof.gif", fps=26)
 
     # -------------------------------------------------------------------------
-    # 3. SCENARIO AUTO LANDING & TELEMETRY (FCS Autonomous Approach & Touchdown)
-    # -------------------------------------------------------------------------
     # 3. SCENARIO AUTO LANDING & TELEMETRY (3 Consecutive Autonomous Deck Landings)
     # -------------------------------------------------------------------------
     print("Generating Scenario 3: 3 Consecutive Autonomous Deck Landings (Full Demo)...")
     ship = ShipMotion()
     evtol = eVTOLController()
     evtol.is_auto = True
-    evtol.x = ship.base_x
-    evtol.y = ship.base_y - 85
-    evtol.vx = 0.0
-    evtol.vy = 0.0
+    evtol.reset_position()
+    
+    landing_count = 0
+    step = 0
+    hold = 0
+    prop_angle = 0
     history_ship_pitch = []
     frames_auto = []
     
-    total_auto_steps = 240
-    # 3 Consecutive Landing Cycles:
-    # Run 1: steps 0..75   (descent 0..45, locked 45..60, climb 60..75)
-    # Run 2: steps 75..150 (descent 75..120, locked 120..135, climb 135..150)
-    # Run 3: steps 150..240(descent 150..195, locked 195..240)
-    for step in range(total_auto_steps):
-        t = step * 0.038
-        # Natural maritime wave dynamics harmonized with swell period
-        heave = 24.0 * math.sin(1.25 * t) + 6.0 * math.sin(2.5 * t + 0.5)
-        ship_pitch = 14.0 * math.sin(1.25 * t - 0.2) + 2.2 * math.cos(2.5 * t)
-        
-        x_center = ship.base_x
-        y_center = ship.base_y + heave
-        angle_rad = math.radians(ship_pitch)
-        
-        x1 = x_center - (ship.deck_width // 2) * math.cos(angle_rad)
-        y1 = y_center - (ship.deck_width // 2) * math.sin(angle_rad)
-        x2 = x_center + (ship.deck_width // 2) * math.cos(angle_rad)
-        y2 = y_center + (ship.deck_width // 2) * math.sin(angle_rad)
-        ship_center = (x_center, y_center)
-        p1 = (x1, y1)
-        p2 = (x2, y2)
-        
+    msg = ""
+    msg_color = WHITE
+    msg_timer = 0
+    banner = ""
+    
+    while step < 900 and not (landing_count >= 3 and hold == 0):
+        ship_center, p1, p2, ship_pitch = ship.update()
         prop_angle = (prop_angle + 40) % 360
         history_ship_pitch.append(ship_pitch)
         if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
         
-        approach_hover_y = y_center - 85
-        target_deck_y = y_center - 15
-        
-        if step < 75:
-            cycle = 1
-            cs = step
-            is_final = False
-        elif step < 150:
-            cycle = 2
-            cs = step - 75
-            is_final = False
-        else:
-            cycle = 3
-            cs = step - 150
-            is_final = True
-            
-        if cs < 45:
-            # Controlled flare descent
-            u = cs / 45.0
-            s = 6.0 * (u ** 5) - 15.0 * (u ** 4) + 10.0 * (u ** 3)
-            ds_du = 30.0 * (u ** 4) - 60.0 * (u ** 3) + 30.0 * (u ** 2)
-            
-            x_offset = -28.0 if cycle % 2 == 1 else +24.0
-            evtol.x = (x_center + x_offset) - x_offset * s
-            evtol.y = approach_hover_y + (target_deck_y - approach_hover_y) * s
-            evtol.vy = 7.5 * ds_du
-            evtol.vx = -(x_offset / 45.0) * (1.0 - u) * 4.0
-            evtol.angle += (ship_pitch - evtol.angle) * 0.22
-            
-            msg = ""
-            msg_color = WHITE
-            timer = 0
-            if u < 0.60:
-                banner = f"[FCS RUN {cycle}/3] Autonomous Approach & Altitude Sync"
-            else:
-                banner = f"[FCS RUN {cycle}/3] Terminal Flare Deceleration for Soft Touchdown"
-        elif cs < 60 or is_final:
-            # Touchdown & Locked on Helipad
-            evtol.x = x_center
-            evtol.y = target_deck_y
+        if hold > 0:
+            hold -= 1
+            slope = (p2[1] - p1[1]) / (p2[0] - p1[0]) if p2[0] != p1[0] else 0
+            evtol.y = (slope * (evtol.x - p1[0]) + p1[1]) - 15
+            evtol.angle = ship_pitch
             evtol.vy = 0.0
             evtol.vx = 0.0
-            evtol.angle = ship_pitch
-            
-            if is_final:
-                msg = "AUTONOMOUS LANDING SUCCESS: 3/3 ALL COMPLETED"
-                banner = "[FCS 3/3 SUCCESS] All 3 Consecutive Deck Landings Completed & Locked"
-            else:
-                msg = f"AUTONOMOUS LANDING SUCCESS [{cycle}/3]"
-                banner = f"[FCS RUN {cycle}/3 SUCCESS] Soft Touchdown & Locked on Helipad"
-            msg_color = GREEN
-            timer = 60
+            if hold == 0 and landing_count < 3:
+                evtol.reset_position()
+                msg = ""
+                msg_timer = 0
         else:
-            # Vertical liftoff & repositioning for next run
-            u = (cs - 60) / 15.0
-            s = 3.0 * (u ** 2) - 2.0 * (u ** 3)
-            evtol.x = x_center
-            evtol.y = target_deck_y - (target_deck_y - approach_hover_y) * s
-            evtol.vy = -10.0 * (6.0 * u * (1.0 - u))
-            evtol.vx = 0.0
-            evtol.angle += (ship_pitch - evtol.angle) * 0.22
+            evtol.update({}, 0.0, ship_center, ship_pitch)
+            slope = (p2[1] - p1[1]) / (p2[0] - p1[0]) if p2[0] != p1[0] else 0
+            deck_y = slope * (evtol.x - p1[0]) + p1[1]
             
-            msg = f"REPOSITIONING / ASCENDING [{cycle+1}/3]"
-            msg_color = CYAN
-            timer = 0
-            banner = f"[FCS VERTICAL CLIMB] Repositioning for Approach Run {cycle+1}/3"
+            if min(p1[0], p2[0]) <= evtol.x <= max(p1[0], p2[0]):
+                if evtol.y + 15 >= deck_y:
+                    evtol.y = deck_y - 15
+                    impact_v = abs(evtol.vy)
+                    angle_err = abs(evtol.angle - ship_pitch)
+                    evtol.vy = 0.0
+                    landing_count += 1
+                    msg_color = GREEN
+                    msg_timer = 30
+                    if landing_count < 3:
+                        msg = f"AUTONOMOUS LANDING SUCCESS [{landing_count}/3]"
+                        hold = 20 # stay locked on deck for 20 frames before reset to y=100
+                    else:
+                        msg = "AUTONOMOUS LANDING SUCCESS: 3/3 ALL COMPLETED"
+                        hold = 50 # final landing stay locked on deck
+                        
+        run_num = min(landing_count + (0 if hold > 0 else 1), 3)
+        if landing_count >= 3:
+            banner = "[FCS 3/3 SUCCESS] All 3 Consecutive Deck Landings Completed & Locked"
+        elif hold > 0:
+            banner = f"[FCS RUN {landing_count}/3 SUCCESS] Touchdown & Locked on Helipad"
+        else:
+            banner = f"[FCS RUN {run_num}/3] Autonomous Approach from Initial Altitude (y=100)"
             
-        evtol.history_vy.append(evtol.vy)
-        evtol.history_angle_diff.append(abs(evtol.angle - ship_pitch))
-        if len(evtol.history_vy) > 100: evtol.history_vy.pop(0)
-        if len(evtol.history_angle_diff) > 100: evtol.history_angle_diff.pop(0)
+        if step % 2 == 0:
+            render_simulator(
+                screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
+                history_ship_pitch, None, set(), fonts,
+                msg, msg_color, msg_timer,
+                extra_banner=banner
+            )
+            img_data = pygame.image.tostring(screen, "RGB")
+            pil_img = Image.frombytes("RGB", (WIDTH, HEIGHT), img_data)
+            pil_img = pil_img.resize(target_gif_size, Image.Resampling.LANCZOS)
+            frames_auto.append(pil_img)
+            
+        step += 1
         
-        # cam_frame = None: Clean flight theater view without pilot hand PIP
-        render_simulator(
-            screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
-            history_ship_pitch, None, set(), fonts,
-            msg, msg_color, timer,
-            extra_banner=banner
-        )
-        
-        img_data = pygame.image.tostring(screen, "RGB")
-        pil_img = Image.frombytes("RGB", (WIDTH, HEIGHT), img_data)
-        pil_img = pil_img.resize(target_gif_size, Image.Resampling.LANCZOS)
-        frames_auto.append(pil_img)
-            
-    save_flicker_free_gif(frames_auto, "assets/demo_auto_landing.gif", fps=24)
+    save_flicker_free_gif(frames_auto, "assets/demo_auto_landing.gif", fps=26)
 
     print("=== All Active Documentation Assets Generated Successfully! ===")
 

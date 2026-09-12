@@ -78,7 +78,9 @@ class eVTOLController:
         if len(self.history_angle_diff) > 100: self.history_angle_diff.pop(0)
 
     def reset_position(self):
+        self.x = 640
         self.y = 100
         self.vy = 0
         self.vx = 0
+        self.angle = 0.0
         self.thrust_multiplier = 1.0
