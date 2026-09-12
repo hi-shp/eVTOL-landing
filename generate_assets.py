@@ -472,7 +472,8 @@ def main():
     history_ship_pitch = []
     frames_auto = []
     
-    total_auto_steps = 100
+    total_auto_steps = 110
+    touchdown_step = 78
     for step in range(total_auto_steps):
         t = step * 0.0333
         # Natural maritime wave dynamics harmonized with swell period
@@ -496,27 +497,38 @@ def main():
         if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
         
         target_deck_y = y_center - 25
-        if step < 68:
-            prog = step / 68.0
-            evtol.y = 120.0 + (target_deck_y - 120.0) * (prog ** 1.3)
-            evtol.x = 590.0 + (x_center - 590.0) * prog
-            evtol.vy = 30.0 * (1.0 - prog) + 6.0
-            evtol.vx = 8.0 * (1.0 - prog)
-            evtol.angle += (ship_pitch - evtol.angle) * 0.18
+        if step < touchdown_step:
+            u = step / float(touchdown_step)
+            # Quintic smoothstep for smooth flare deceleration (zero velocity & acceleration at touchdown)
+            s = 6.0 * (u ** 5) - 15.0 * (u ** 4) + 10.0 * (u ** 3)
+            ds_du = 30.0 * (u ** 4) - 60.0 * (u ** 3) + 30.0 * (u ** 2)
+            
+            evtol.x = 590.0 + (x_center - 590.0) * s
+            evtol.y = 120.0 + (target_deck_y - 120.0) * s
+            
+            # Smooth descent speed curve peaking mid-flight and decelerating gently to 0 at deck
+            evtol.vy = 24.0 * ds_du
+            evtol.vx = 6.0 * (1.0 - u)
+            evtol.angle += (ship_pitch - evtol.angle) * 0.20
+            
             msg = ""
             msg_color = WHITE
             timer = 0
-            banner = "[FCS AUTONOMOUS APPROACH] Synchronizing Altitude & Pitch with Deck Wave Motion"
+            if u < 0.65:
+                banner = "[FCS AUTONOMOUS APPROACH] Synchronizing Altitude & Waypoint with Deck"
+            else:
+                banner = "[FCS TERMINAL FLARE] Decelerating Descent Rate for Soft Deck Touchdown"
         else:
+            # Soft cushion touchdown & riding the maritime wave
             evtol.x = x_center
             evtol.y = target_deck_y
             evtol.vy = 0.0
             evtol.vx = 0.0
             evtol.angle = ship_pitch
-            msg = "AUTONOMOUS LANDING SUCCESS: TOUCHDOWN CONFIRMED"
+            msg = "AUTONOMOUS LANDING SUCCESS: SOFT TOUCHDOWN"
             msg_color = GREEN
             timer = 60
-            banner = "[FCS TOUCHDOWN SUCCESS] Zero Pitch Error & Skids Fully Locked on Helipad"
+            banner = "[FCS TOUCHDOWN SUCCESS] Soft Cushion Landing & Skids Locked on Helipad"
             
         evtol.history_vy.append(evtol.vy)
         evtol.history_angle_diff.append(abs(evtol.angle - ship_pitch))
