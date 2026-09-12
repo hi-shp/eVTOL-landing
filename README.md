@@ -5,7 +5,7 @@
 
 <div align="center">
   <img src="assets/demo_auto_landing.gif" alt="MASS-eVTOL Autonomous Deck Landing System" width="920"/>
-  <p>[FCS 자율 착륙 시스템] 다변수 예측 제어를 통해 요동치는 해상 선박 갑판의 파랑 거동을 실시간 추적하여 안전 안착하는 비행 시뮬레이션</p>
+  <p>[FCS 자율 착륙 시스템] 다변수 예측 제어를 통해 요동치는 해상 선박 갑판의 파랑 거동을 실시간 추적하여 3회 연속 완벽하게 안전 안착하는 비행 시뮬레이션</p>
 </div>
 
 ---
@@ -96,18 +96,7 @@
 
 ---
 
-## 4. FCS 자율 착륙 시스템
-
-비행 중 T 키를 누르면 수동 비행에서 자율 착륙 모드로 전환됩니다. FCS는 선박 헬리패드 중심 좌표와 데크의 실시간 법선 각도를 추적하여 위치 오차와 각도 오차를 실시간으로 0에 수렴시킵니다.
-
-<div align="center">
-  <img src="assets/screenshot_auto_landing.png" alt="FCS Auto Landing Detail Screenshot" width="920"/>
-  <p>[FCS 자율 착륙 제어] 초록색 유도선(LOC)을 통해 헬리패드 중심을 정밀 추적하며 선체 기울기에 맞춰 안전 하강</p>
-</div>
-
----
-
-## 5. 수학적 모델링 및 제어 수식
+## 4. 수학적 모델링 및 제어 수식
 
 ### 파랑 및 선체 거동 모델
 선체의 상하 요동(Heave)과 종동요(Pitch)는 복수의 조화함수 중첩으로 모델링됩니다.
@@ -167,7 +156,7 @@ $$\theta_{drone}(t + \Delta t) = \theta_{drone}(t) + 0.14 \cdot (\theta_{tilt} -
 
 ---
 
-## 6. 조작키 및 입력 안내
+## 5. 조작키 및 입력 안내
 
 | 조작키 / 입력 | 기능 설명 | 세부 동작 |
 |:---:|:---|:---|
@@ -181,7 +170,7 @@ $$\theta_{drone}(t + \Delta t) = \theta_{drone}(t) + 0.14 \cdot (\theta_{tilt} -
 
 ---
 
-## 7. 설치 및 실행 가이드
+## 6. 설치 및 실행 가이드
 
 ### 1. 저장소 클론
 ```bash
