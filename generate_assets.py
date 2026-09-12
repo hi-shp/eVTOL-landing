@@ -134,8 +134,8 @@ def render_simulator(screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_
     rect = rotated_drone.get_rect(center=(int(evtol.x), int(evtol.y)))
     screen.blit(rotated_drone, rect.topleft)
 
-    # Attitude indicator line
-    drone_rad = math.radians(-evtol.angle)
+    # Attitude indicator line (strictly parallel to drone orientation)
+    drone_rad = math.radians(evtol.angle)
     ref_len = 50
     ref_x1 = evtol.x - ref_len * math.cos(drone_rad)
     ref_y1 = evtol.y - ref_len * math.sin(drone_rad)

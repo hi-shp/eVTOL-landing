@@ -1,109 +1,95 @@
+import os
 import cv2
 import numpy as np
 import math
 
-def create_avatar_pilot_frame(hand_angle_deg, frame_idx=0):
-    """
-    Renders Cyber Pilot Avatar.
-    Positive hand_angle_deg (+deg) rotates CLOCKWISE (RIGHT on screen).
-    Negative hand_angle_deg (-deg) rotates COUNTER-CLOCKWISE (LEFT on screen).
-    """
-    w, h = 320, 240
-    img = np.zeros((h, w, 3), dtype=np.uint8)
-    
-    # 1. Dark Cockpit Background (Uniform solid dark blue to prevent GIF palette flicker)
-    img[:, :] = (14, 20, 30)
-    
-    # Canopy Frame lines
-    cv2.line(img, (0, 65), (w, 65), (25, 38, 55), 1)
-    cv2.line(img, (w//2, 0), (w//2, 100), (25, 38, 55), 1)
-    cv2.line(img, (12, 12), (35, 12), (0, 180, 220), 1)
-    cv2.line(img, (12, 12), (12, 35), (0, 180, 220), 1)
-    cv2.line(img, (w - 12, 12), (w - 35, 12), (0, 180, 220), 1)
-    cv2.line(img, (w - 12, 12), (w - 12, 35), (0, 180, 220), 1)
+AVATAR_BASE_PATH = os.path.join(os.path.dirname(__file__), "assets", "pilot_avatar_base.jpg")
+_cached_base = None
 
-    # 2. Cyber Pilot Avatar (Helmet & Flight Suit)
-    hc_x, hc_y = 160, 56
+def get_avatar_base(w=320, h=240):
+    global _cached_base
+    if _cached_base is not None:
+        return _cached_base.copy()
+    if os.path.exists(AVATAR_BASE_PATH):
+        raw = cv2.imread(AVATAR_BASE_PATH)
+        if raw is not None:
+            bh, bw = raw.shape[:2]
+            crop_w = int(bh * 4 / 3)
+            if crop_w <= bw:
+                start_x = (bw - crop_w) // 2
+                cropped = raw[:, start_x:start_x + crop_w]
+            else:
+                cropped = raw
+            _cached_base = cv2.resize(cropped, (w, h))
+            return _cached_base.copy()
+            
+    fallback = np.zeros((h, w, 3), dtype=np.uint8)
+    fallback[:, :] = (15, 22, 32)
+    return fallback
+
+def draw_realistic_hand(img, hand_angle_deg):
+    """
+    Renders realistic human hand positioned below face (chest level)
+    with natural skin tone and MediaPipe tracking overlay.
+    hand_angle_deg > 0: Tilts RIGHT (Clockwise)
+    hand_angle_deg < 0: Tilts LEFT (Counter-Clockwise)
+    """
+    w, h = img.shape[1], img.shape[0]
     
-    # Flight Suit / Shoulders
-    shoulder_pts = np.array([
-        (55, 155), (95, 115), (125, 105), (195, 105), (225, 115), (265, 155),
-        (265, 185), (55, 185)
-    ], dtype=np.int32)
-    cv2.fillPoly(img, [shoulder_pts], (26, 34, 46))
-    cv2.polylines(img, [shoulder_pts], False, (45, 68, 92), 2)
-    
-    # Helmet Shell
-    cv2.ellipse(img, (hc_x, hc_y), (44, 48), 0, 0, 360, (35, 45, 58), -1)
-    cv2.ellipse(img, (hc_x, hc_y), (44, 48), 0, 0, 360, (70, 95, 125), 2)
-    
-    # Helmet Sensor Crest
-    crest_pts = np.array([(148, 10), (172, 10), (168, 24), (152, 24)], dtype=np.int32)
-    cv2.fillPoly(img, [crest_pts], (50, 65, 85))
-    cv2.polylines(img, [crest_pts], True, (0, 220, 255), 1)
-    
-    # Cyber Visor (Neon Cyan Shield)
-    visor_pts = np.array([
-        (hc_x - 30, hc_y - 10),
-        (hc_x - 22, hc_y - 20),
-        (hc_x + 22, hc_y - 20),
-        (hc_x + 30, hc_y - 10),
-        (hc_x + 26, hc_y + 12),
-        (hc_x, hc_y + 16),
-        (hc_x - 26, hc_y + 12)
-    ], dtype=np.int32)
-    cv2.fillPoly(img, [visor_pts], (20, 110, 170))
-    cv2.polylines(img, [visor_pts], True, (0, 245, 255), 2)
-    
-    # Visor Reflection Highlight
-    cv2.line(img, (hc_x - 16, hc_y - 14), (hc_x + 10, hc_y - 14), (160, 240, 255), 2)
-    cv2.circle(img, (hc_x, hc_y - 2), 4, (0, 255, 180), 1)
-    
-    # Boom Microphone & Headset
-    cv2.circle(img, (hc_x - 44, hc_y), 6, (50, 65, 85), -1)
-    cv2.circle(img, (hc_x + 44, hc_y), 6, (50, 65, 85), -1)
-    cv2.line(img, (hc_x - 42, hc_y + 4), (hc_x - 15, hc_y + 23), (75, 90, 110), 2)
-    cv2.circle(img, (hc_x - 14, hc_y + 24), 3, (0, 255, 100), -1)
-    
-    # 3. Pilot's Hand with Correct Clockwise Rotation
-    # Angle in radians (standard math: positive angle is CCW, but screen y is inverted,
-    # so standard rotation with x' = x cos θ - y sin θ rotates CLOCKWISE in screen coordinates!)
-    # Let base vector be pointing upwards (dy < 0, dx = 0).
-    # When hand_angle_deg > 0 (e.g. +30 deg), we want fingers to tilt RIGHT (dx > 0).
-    # Rotation formula for screen coords where +y is down:
-    # x' = cx + dx * cos(θ) - dy * sin(θ)
-    # y' = cy + dx * sin(θ) + dy * cos(θ)
-    # For dx = 0, dy = -r:
-    # x' = cx - (-r) * sin(θ) = cx + r * sin(θ)
-    # If θ > 0: sin(θ) > 0 ==> x' > cx (TILTS RIGHT!)
-    # y' = cy + (-r) * cos(θ) = cy - r * cos(θ)
     theta = math.radians(hand_angle_deg)
     cos_t = math.cos(theta)
     sin_t = math.sin(theta)
     
-    # Wrist position in lower center
-    cx, cy = 160, 190
+    # Wrist at bottom center, leaving face/smile fully visible
+    cx, cy = 160, 218
     lm0 = (cx, cy)
     
     def rot(dx, dy):
         return (int(cx + dx * cos_t - dy * sin_t), int(cy + dx * sin_t + dy * cos_t))
     
-    # Hand finger joints relative to wrist (0, 0) pointing UP (dy negative)
-    lm_thumb = [rot(-20, -10), rot(-28, -24), rot(-32, -36), rot(-35, -48)]
-    lm_index = [rot(-10, -22), rot(-14, -38), rot(-16, -52), rot(-18, -66)]
-    lm_middle = [rot(0, -24), rot(0, -42), rot(0, -58), rot(0, -74)]
-    lm_ring = [rot(10, -22), rot(14, -38), rot(16, -52), rot(18, -64)]
-    lm_pinky = [rot(20, -18), rot(24, -32), rot(26, -44), rot(28, -54)]
+    # Anatomical finger joints pointing upwards towards chest
+    lm_thumb = [rot(-18, -10), rot(-28, -22), rot(-34, -36), rot(-38, -48)]
+    lm_index = [rot(-11, -22), rot(-15, -40), rot(-17, -58), rot(-18, -74)]
+    lm_middle = [rot(0, -24), rot(0, -44), rot(0, -64), rot(0, -82)]
+    lm_ring = [rot(11, -22), rot(14, -39), rot(16, -56), rot(17, -72)]
+    lm_pinky = [rot(20, -16), rot(24, -30), rot(27, -44), rot(29, -58)]
     
-    # Glove Palm Fill
-    palm_pts = np.array([lm0, lm_thumb[0], lm_index[0], lm_middle[0], lm_ring[0], lm_pinky[0]], dtype=np.int32)
-    cv2.fillPoly(img, [palm_pts], (42, 54, 68))
-    
-    # Skeleton lines (MediaPipe green)
     fingers = [lm_thumb, lm_index, lm_middle, lm_ring, lm_pinky]
+    
+    # 1. Realistic Flesh Hand Underlay
+    skin_base = (175, 195, 235)    # BGR natural peach skin tone
+    skin_shadow = (145, 165, 205)  # Edge shading
+    
+    # Forearm
+    arm_pts = np.array([
+        (cx - 30, h), (cx - 24, cy), (cx + 24, cy), (cx + 30, h)
+    ], dtype=np.int32)
+    cv2.fillPoly(img, [arm_pts], skin_base)
+    cv2.polylines(img, [arm_pts], False, skin_shadow, 2)
+    
+    # Palm flesh polygon
+    palm_pts = np.array([
+        rot(-20, 8), lm_thumb[0], lm_index[0], lm_middle[0], lm_ring[0], lm_pinky[0], rot(20, 8), lm0
+    ], dtype=np.int32)
+    cv2.fillPoly(img, [palm_pts], skin_base)
+    cv2.polylines(img, [palm_pts], True, skin_shadow, 2)
+    
+    # Finger flesh segments
+    finger_radii = [10, 9, 9, 8, 7]
+    for f, rad_base in zip(fingers, finger_radii):
+        prev_pt = lm0 if f is lm_thumb or f is lm_pinky else f[0]
+        for seg_idx, pt in enumerate(f):
+            r = max(4, rad_base - seg_idx * 2)
+            cv2.line(img, prev_pt, pt, skin_base, r * 2)
+            cv2.circle(img, pt, r, skin_base, -1)
+            if seg_idx < 3:
+                cv2.circle(img, pt, r, skin_shadow, 1)
+            prev_pt = pt
+            
+    # 2. MediaPipe Tracking Overlay (Real-time Vision Skeleton)
     green = (0, 255, 120)
     red = (30, 40, 255)
-    yellow = (0, 230, 255)
+    yellow = (0, 235, 255)
     
     for f in fingers:
         prev = lm0 if (f is lm_thumb or f is lm_pinky) else f[0]
@@ -116,29 +102,30 @@ def create_avatar_pilot_frame(hand_angle_deg, frame_idx=0):
     
     # Control Vector Arrow (lm0 Wrist -> lm9 Middle MCP)
     lm9 = lm_middle[0]
-    cv2.arrowedLine(img, lm0, lm9, yellow, 2, tipLength=0.25)
+    cv2.arrowedLine(img, lm0, lm9, yellow, 2, tipLength=0.22)
+
+def create_avatar_pilot_frame(hand_angle_deg, frame_idx=0):
+    w, h = 320, 240
+    img = get_avatar_base(w, h)
     
-    # 4. HUD Labels (Carefully positioned to avoid overlap)
-    # Top Left: Avatar Mask Protected
+    # Subtle dark gradient at bottom chest level
+    for y in range(80):
+        alpha = min(0.65, y / 80.0)
+        img[h - 80 + y, :] = (img[h - 80 + y, :] * (1 - alpha) + np.array([12, 18, 26]) * alpha).astype(np.uint8)
+
+    draw_realistic_hand(img, hand_angle_deg)
+    
+    # Top Left: Avatar Mask
     cv2.rectangle(img, (8, 6), (150, 22), (10, 15, 22), -1)
     cv2.putText(img, "AVATAR MASK: ACTIVE", (12, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 150), 1)
     
-    # Top Right: Hand Pitch Value
-    direction_txt = "RIGHT" if hand_angle_deg > 0.5 else ("LEFT" if hand_angle_deg < -0.5 else "CENTER")
+    # Top Right: Pitch value
+    direction_txt = "RIGHT" if hand_angle_deg > 0.5 else ("LEFT" if hand_angle_deg < -0.5 else "LEVEL")
     pitch_str = f"PITCH: {hand_angle_deg:+.1f} deg [{direction_txt}]"
     cv2.rectangle(img, (w - 180, 6), (w - 8, 22), (10, 15, 22), -1)
     cv2.putText(img, pitch_str, (w - 176, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.33, (0, 240, 255), 1)
     
     # Bottom Center: Label
-    cv2.putText(img, "3-DoF Body Pitch Coupled", (85, 230), cv2.FONT_HERSHEY_SIMPLEX, 0.34, (160, 175, 190), 1)
+    cv2.putText(img, "3-DoF Body Pitch Coupled", (85, 232), cv2.FONT_HERSHEY_SIMPLEX, 0.34, (200, 220, 240), 1)
     
     return img
-
-if __name__ == "__main__":
-    # Test +30 deg (should tilt right on screen)
-    img_right = create_avatar_pilot_frame(30.0)
-    cv2.imwrite("assets/test_tilt_right.png", img_right)
-    # Test -30 deg (should tilt left on screen)
-    img_left = create_avatar_pilot_frame(-30.0)
-    cv2.imwrite("assets/test_tilt_left.png", img_left)
-    print("Test images saved: assets/test_tilt_right.png, assets/test_tilt_left.png")
