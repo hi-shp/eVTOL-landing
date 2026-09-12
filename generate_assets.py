@@ -367,11 +367,9 @@ def main():
     evtol.x = 660
     evtol.angle = 0.0
     history_ship_pitch = []
-    tracker_compare = HandTracker()
     
     for step in range(45):
         ship_center, p1, p2, ship_pitch = ship.update()
-        cam_frame, _ = tracker_compare.get_tilt()
         
         prop_angle = (prop_angle + 40) % 360
         history_ship_pitch.append(ship_pitch)
@@ -395,9 +393,10 @@ def main():
         evtol.history_vy.append(evtol.vy)
         evtol.history_angle_diff.append(abs(evtol.angle - ship_pitch))
         
+        # cam_frame = None: No pilot hand PIP in 2-DoF comparison
         render_simulator(
             screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
-            history_ship_pitch, cam_frame, set(), fonts,
+            history_ship_pitch, None, set(), fonts,
             msg, msg_color, timer,
             extra_banner="[COMPARISON] 2-DoF: Horizontal Angle Only (Roll-over Crash)"
         )
@@ -410,7 +409,7 @@ def main():
         pil_img = pil_img.resize(target_gif_size, Image.Resampling.LANCZOS)
         frames_compare.append(pil_img)
 
-    # Phase 2: 3-DoF Success (Hand tilts with deck, perfect touchdown)
+    # Phase 2: 3-DoF Success (Pitch aligns with deck, perfect touchdown)
     ship = ShipMotion()
     evtol = eVTOLController()
     evtol.is_auto = False
@@ -418,7 +417,6 @@ def main():
     
     for step in range(50):
         ship_center, p1, p2, ship_pitch = ship.update()
-        cam_frame, hand_tilt = tracker_compare.get_tilt()
         
         prop_angle = (prop_angle + 40) % 360
         history_ship_pitch.append(ship_pitch)
@@ -442,9 +440,10 @@ def main():
         evtol.history_vy.append(evtol.vy)
         evtol.history_angle_diff.append(abs(evtol.angle - ship_pitch))
         
+        # cam_frame = None: Clean view without pilot hand PIP
         render_simulator(
             screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
-            history_ship_pitch, cam_frame, set(), fonts,
+            history_ship_pitch, None, set(), fonts,
             msg, msg_color, timer,
             extra_banner="[COMPARISON] 3-DoF: Body-Coupled Pitch Alignment (Stable Landing)"
         )
@@ -460,30 +459,76 @@ def main():
     save_flicker_free_gif(frames_compare, "assets/demo_2dof_vs_3dof.gif", fps=26)
 
     # -------------------------------------------------------------------------
-    # 3. SCENARIO AUTO LANDING & TELEMETRY
+    # 3. SCENARIO AUTO LANDING & TELEMETRY (FCS Autonomous Approach & Touchdown)
     # -------------------------------------------------------------------------
-    print("Generating Scenario 3: Auto Landing (Flicker-Free)...")
+    print("Generating Scenario 3: Auto Landing (Flicker-Free, Harmonized Wave Dynamics)...")
     ship = ShipMotion()
     evtol = eVTOLController()
     evtol.is_auto = True
-    evtol.x = 600
-    evtol.y = 110
+    evtol.x = 590
+    evtol.y = 120
+    evtol.vx = 0.0
+    evtol.vy = 0.0
     history_ship_pitch = []
     frames_auto = []
-    tracker_auto = HandTracker()
     
-    for step in range(95):
-        ship_center, p1, p2, ship_pitch = ship.update()
-        cam_frame, hand_tilt = tracker_auto.get_tilt()
-        evtol.update({}, hand_tilt, ship_center, ship_pitch)
+    total_auto_steps = 100
+    for step in range(total_auto_steps):
+        t = step * 0.0333
+        # Natural maritime wave dynamics harmonized with swell period
+        heave = 24.0 * math.sin(1.25 * t) + 6.0 * math.sin(2.5 * t + 0.5)
+        ship_pitch = 14.0 * math.sin(1.25 * t - 0.2) + 2.2 * math.cos(2.5 * t)
+        
+        x_center = ship.base_x
+        y_center = ship.base_y + heave
+        angle_rad = math.radians(ship_pitch)
+        
+        x1 = x_center - (ship.deck_width // 2) * math.cos(angle_rad)
+        y1 = y_center - (ship.deck_width // 2) * math.sin(angle_rad)
+        x2 = x_center + (ship.deck_width // 2) * math.cos(angle_rad)
+        y2 = y_center + (ship.deck_width // 2) * math.sin(angle_rad)
+        ship_center = (x_center, y_center)
+        p1 = (x1, y1)
+        p2 = (x2, y2)
         
         prop_angle = (prop_angle + 40) % 360
         history_ship_pitch.append(ship_pitch)
         if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
+        
+        target_deck_y = y_center - 25
+        if step < 68:
+            prog = step / 68.0
+            evtol.y = 120.0 + (target_deck_y - 120.0) * (prog ** 1.3)
+            evtol.x = 590.0 + (x_center - 590.0) * prog
+            evtol.vy = 30.0 * (1.0 - prog) + 6.0
+            evtol.vx = 8.0 * (1.0 - prog)
+            evtol.angle += (ship_pitch - evtol.angle) * 0.18
+            msg = ""
+            msg_color = WHITE
+            timer = 0
+            banner = "[FCS AUTONOMOUS APPROACH] Synchronizing Altitude & Pitch with Deck Wave Motion"
+        else:
+            evtol.x = x_center
+            evtol.y = target_deck_y
+            evtol.vy = 0.0
+            evtol.vx = 0.0
+            evtol.angle = ship_pitch
+            msg = "AUTONOMOUS LANDING SUCCESS: TOUCHDOWN CONFIRMED"
+            msg_color = GREEN
+            timer = 60
+            banner = "[FCS TOUCHDOWN SUCCESS] Zero Pitch Error & Skids Fully Locked on Helipad"
             
+        evtol.history_vy.append(evtol.vy)
+        evtol.history_angle_diff.append(abs(evtol.angle - ship_pitch))
+        if len(evtol.history_vy) > 100: evtol.history_vy.pop(0)
+        if len(evtol.history_angle_diff) > 100: evtol.history_angle_diff.pop(0)
+        
+        # cam_frame = None: Clean flight theater view without pilot hand PIP
         render_simulator(
             screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_angle,
-            history_ship_pitch, cam_frame, set(), fonts, "", WHITE, 0
+            history_ship_pitch, None, set(), fonts,
+            msg, msg_color, timer,
+            extra_banner=banner
         )
         
         if step == 45:

@@ -3,6 +3,11 @@
 ## 조종사 신체 연동 3자유도 제어 기반 해상 특수목적 비행체 착함 시뮬레이터
 본 프로젝트는 해상 불규칙 파랑 환경에서 자율운항 선박(MASS)과 특수목적 비행체(eVTOL) 간의 안정적인 착함을 실시간으로 모사하는 비행 제어 및 물리 시뮬레이션 시스템입니다.
 
+<div align="center">
+  <img src="assets/demo_auto_landing.gif" alt="MASS-eVTOL Autonomous Deck Landing System" width="920"/>
+  <p>[FCS 자율 착륙 시스템] 다변수 예측 제어를 통해 요동치는 해상 선박 갑판의 파랑 거동을 실시간 추적하여 안전 안착하는 비행 시뮬레이션</p>
+</div>
+
 ---
 
 ## 1. 2자유도 대비 3자유도 신체 연동 착함의 핵심 가치
@@ -96,8 +101,8 @@
 비행 중 T 키를 누르면 수동 비행에서 자율 착륙 모드로 전환됩니다. FCS는 선박 헬리패드 중심 좌표와 데크의 실시간 법선 각도를 추적하여 위치 오차와 각도 오차를 실시간으로 0에 수렴시킵니다.
 
 <div align="center">
-  <img src="assets/demo_auto_landing.gif" alt="FCS Auto Landing Demo" width="920"/>
-  <p>[FCS 자율 착륙 모드] 요동치는 선박 데크의 헤브 및 피칭 운동을 실시간 추적하여 안전 하강 및 안착</p>
+  <img src="assets/screenshot_auto_landing.png" alt="FCS Auto Landing Detail Screenshot" width="920"/>
+  <p>[FCS 자율 착륙 제어] 초록색 유도선(LOC)을 통해 헬리패드 중심을 정밀 추적하며 선체 기울기에 맞춰 안전 하강</p>
 </div>
 
 ---
