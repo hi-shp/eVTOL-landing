@@ -145,8 +145,11 @@ def render_simulator(screen, evtol, ship, ship_center, p1, p2, ship_pitch, prop_
     pygame.draw.line(screen, (0, 220, 240), (int(ref_x1), int(ref_y1)), (int(ref_x2), int(ref_y2)), 2)
 
     if evtol.is_auto:
-        pygame.draw.line(screen, (80, 255, 130), (int(evtol.x), int(evtol.y)), (int(deck_mid_x), int(deck_mid_y)), 1)
-        draw_text(screen, "LOC: TRACKING DECK", font_xs, GREEN, int(evtol.x) + 48, int(evtol.y) - 10)
+        if msg_timer == 0:
+            pygame.draw.line(screen, (80, 255, 130), (int(evtol.x), int(evtol.y)), (int(deck_mid_x), int(deck_mid_y)), 1)
+            draw_text(screen, "LOC: TRACKING DECK", font_xs, GREEN, int(evtol.x) + 48, int(evtol.y) - 10)
+        else:
+            draw_text(screen, "DECK LOCKED", font_xs, GREEN, int(evtol.x) + 48, int(evtol.y) - 10)
 
     # 4. Telemetry Panels & HUD (width: 370, leaving plenty of center space)
     gx, gw, gh = 20, 370, 165
@@ -430,7 +433,7 @@ def main():
             msg_color = WHITE
             timer = 0
         else:
-            evtol.y = ship_center[1] - 25
+            evtol.y = ship_center[1] - 15
             evtol.vy = 0.0
             evtol.angle = ship_pitch
             msg = "3-DoF SUCCESS: BODY-ALIGNED TOUCHDOWN"
@@ -496,7 +499,7 @@ def main():
         history_ship_pitch.append(ship_pitch)
         if len(history_ship_pitch) > 100: history_ship_pitch.pop(0)
         
-        target_deck_y = y_center - 25
+        target_deck_y = y_center - 15
         if step < touchdown_step:
             u = step / float(touchdown_step)
             # Quintic smoothstep for smooth flare deceleration (zero velocity & acceleration at touchdown)
