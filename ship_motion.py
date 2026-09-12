@@ -1,10 +1,10 @@
-# ship_motion.py
 import math
 from config import WIDTH, HEIGHT, DT, PREDICTION_STEPS
 
 class ShipMotion:
     def __init__(self):
         self.time = 0.0
+        self.base_x = WIDTH // 2     # 선박 기본 X 위치
         self.base_y = HEIGHT - 150  # 선박 기본 흘수선 위치
         self.deck_width = 250       # 헬리패드 데크 길이
         
@@ -19,19 +19,25 @@ class ShipMotion:
         for a, f, p in zip(self.amplitudes, self.frequencies, self.phases):
             heave += a * math.sin(f * t + p)
             
-        # 2. Pitch (선체 회전/기울기) 수치 연산
+        # 2. Surge (전후 거동) 수치 연산 
+        surge = 0
+        # surge = 25.0 * math.sin(0.9 * t + 0.6)
+        
+        # 3. Pitch (선체 회전/기울기) 수치 연산
         pitch = 14.0 * math.sin(0.8 * t + 0.4)
         
+        # 선체 중심 좌표 계산
+        x_center = self.base_x + surge
         y_center = self.base_y + heave
         angle_rad = math.radians(pitch)
         
         # 선체 패드의 양 끝점 좌표 계산 (기울기 반영)
-        x1 = (WIDTH // 2) - (self.deck_width // 2) * math.cos(angle_rad)
+        x1 = x_center - (self.deck_width // 2) * math.cos(angle_rad)
         y1 = y_center - (self.deck_width // 2) * math.sin(angle_rad)
-        x2 = (WIDTH // 2) + (self.deck_width // 2) * math.cos(angle_rad)
+        x2 = x_center + (self.deck_width // 2) * math.cos(angle_rad)
         y2 = y_center + (self.deck_width // 2) * math.sin(angle_rad)
         
-        return (WIDTH // 2, y_center), (x1, y1), (x2, y2), pitch
+        return (x_center, y_center), (x1, y1), (x2, y2), pitch
 
     def update(self):
         self.time += DT

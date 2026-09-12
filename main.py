@@ -49,7 +49,7 @@ def draw_wasd(screen, keys, font, x, y):
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("MASS-eVTOL Landing Simulator")
+    pygame.display.set_caption("MASS-eVTOL Autonomous Landing Simulator")
     clock = pygame.time.Clock()
     
     font_xs = pygame.font.SysFont("consolas", 10)
